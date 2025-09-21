@@ -114,7 +114,7 @@ export default function Home() {
                         gradient={false}      // pas de gradient
                         direction="right"      // de droite vers gauche
                     >
-                       
+
                         {keywords.map((word, index) => (
                             <span key={index} className="text-4xl font-extrabold text-green-700  inline-flex items-center">
                                 {word}
@@ -273,14 +273,26 @@ export default function Home() {
 
 
 
-                <section className="px-8 py-20 text-center bg-gradient-to-r from-green-600 to-blue-600 text-white">
-                    <h3 className="text-3xl font-bold mb-6">
-                        🌍 Rejoignez la révolution foncière numérique !
+                <section className="px-8 py-24 text-center bg-gradient-to-r from-green-600 to-blue-600 text-white relative overflow-hidden">
+                    {/* Décoratif : petites formes ou glow */}
+                    <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+                    <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/10 rounded-full translate-x-1/4 translate-y-1/4"></div>
+
+                    {/* Titre */}
+                    <h3 className="text-4xl md:text-5xl font-extrabold mb-4 relative inline-block">
+                        Rejoignez la révolution foncière numérique !
+                        <span className="block w-20 h-1 bg-white mx-auto mt-3 rounded-full"></span>
                     </h3>
-                    <button className="bg-white text-green-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100">
+                    <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto">
+                        Découvrez notre solution intelligente pour sécuriser, cartographier et analyser vos terrains facilement.
+                    </p>
+
+                    {/* Bouton */}
+                    <button className="bg-white text-green-600 px-8 py-4 rounded-full font-semibold hover:bg-gray-100 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
                         Essayer la Démo
                     </button>
                 </section>
+
 
 
                 <footer id="contact" className="px-8 py-6 bg-gray-900 text-gray-300 text-center">
