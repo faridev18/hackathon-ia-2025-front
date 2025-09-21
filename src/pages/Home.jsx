@@ -279,7 +279,7 @@ export default function Home() {
                     <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/10 rounded-full translate-x-1/4 translate-y-1/4"></div>
 
                     {/* Titre */}
-                    <h3 className="text-4xl md:text-5xl font-extrabold mb-4 relative inline-block">
+                    <h3 className="text-3xl md:text-5xl font-extrabold mb-4 relative inline-block">
                         Rejoignez la révolution foncière numérique !
                         <span className="block w-20 h-1 bg-white mx-auto mt-3 rounded-full"></span>
                     </h3>
