@@ -12,10 +12,11 @@ export default function Navbar() {
 
         {/* Menu Desktop */}
         <ul className="hidden md:flex gap-6 text-gray-700 font-medium">
-          <li><a href="#features" className="hover:text-green-600">Fonctionnalités</a></li>
-          <li><a href="#story" className="hover:text-green-600">Scénario</a></li>
-          <li><a href="#team" className="hover:text-green-600">Équipe</a></li>
-          <li><a href="#contact" className="hover:text-green-600">Contact</a></li>
+          <li><a href="/#features" className="hover:text-green-600">Fonctionnalités</a></li>
+          <li><a href="/#story" className="hover:text-green-600">Scénario</a></li>
+          <li><a href="/#team" className="hover:text-green-600">Équipe</a></li>
+          <li><a href="/#contact" className="hover:text-green-600">Contact</a></li>
+          <li><a href="/chat" className="hover:text-green-600">Chatbot IA</a></li>
         </ul>
 
         {/* Bouton Demo Desktop */}
