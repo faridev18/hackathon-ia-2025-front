@@ -4,6 +4,7 @@ import './App.css'
 import Home from './pages/Home'
 import { ChatInterface } from './pages/ChatInterface'
 import { Toaster } from 'react-hot-toast'
+import ParcelleMap from './pages/ParcelleMap'
 
 function App() {
 
@@ -15,6 +16,7 @@ function App() {
       />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/parcelle" element={<ParcelleMap />} />
         <Route path="/chat" element={<ChatInterface />} />
       </Routes>
 
