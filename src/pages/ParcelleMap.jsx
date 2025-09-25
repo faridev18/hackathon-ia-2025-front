@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup, Marker, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useLocation, useNavigate } from "react-router";
+
 
 // Fix for default markers in React-Leaflet
 import L from 'leaflet';
@@ -8,12 +10,15 @@ import Navbar from '../components/Navbar';
 
 // Import de la bibliothèque de conversion UTM
 import { toLatLon } from 'utm';
+import { Layers } from 'lucide-react';
 
 let DefaultIcon = L.divIcon({
     html: `<div class="w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>`,
     iconSize: [16, 16],
     iconAnchor: [8, 8]
 });
+
+
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
@@ -25,71 +30,184 @@ const ParcelleMap = () => {
     const [jsonInput, setJsonInput] = useState('');
     const [showJsonInput, setShowJsonInput] = useState(false);
 
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isInfoModalOpen, setIsInfoModalOpen] = useState(true);
+
+
+    const location = useLocation();
+    const { parcelleData } = location.state || {};
+    const navigate = useNavigate();
+
+
+    console.log('====================================');
+    console.log(parcelleData);
+    console.log('====================================');
+
+    const [isLoading, setIsLoading] = useState(true); // État de chargement
+
+
+
     // États pour les différentes couches GeoJSON
     const [litigeData, setLitigeData] = useState(null);
     const [titreReconstitueData, setTitreReconstitueData] = useState(null);
     const [tfEtatData, setTfEtatData] = useState(null);
     const [tfEnCoursData, setTfEnCoursData] = useState(null);
     const [tfDemembresData, setTfDemembresData] = useState(null);
+    const [zoneInondableData, setZoneInondableData] = useState(null);
+    const [restrictionData, setRestrictionData] = useState(null);
+    const [enregistrementIndividuelData, setEnregistrementIndividuelData] = useState(null);
+    const [dpmData, setDpmData] = useState(null);
+    const [dplData, setDplData] = useState(null);
+    const [airProtegesData, setAirProtegesData] = useState(null);
+    const [aifData, setAifData] = useState(null);
 
     // États pour afficher/masquer les couches
-    const [showLitige, setShowLitige] = useState(true);
-    const [showTitreReconstitue, setShowTitreReconstitue] = useState(true);
-    const [showTfEtat, setShowTfEtat] = useState(true);
-    const [showTfEnCours, setShowTfEnCours] = useState(true);
-    const [showTfDemembres, setShowTfDemembres] = useState(true);
+    const [showLitige, setShowLitige] = useState(false);
+    const [showTitreReconstitue, setShowTitreReconstitue] = useState(false);
+    const [showTfEtat, setShowTfEtat] = useState(false);
+    const [showTfEnCours, setShowTfEnCours] = useState(false);
+    const [showTfDemembres, setShowTfDemembres] = useState(false);
+    const [showZoneInondable, setShowZoneInondable] = useState(false);
+    const [showRestriction, setShowRestriction] = useState(false);
+    const [showEnregistrementIndividuel, setShowEnregistrementIndividuel] = useState(false);
+    const [showDpm, setShowDpm] = useState(false);
+    const [showDpl, setShowDpl] = useState(false);
+    const [showAirProteges, setShowAirProteges] = useState(false);
+    const [showAif, setShowAif] = useState(false);
+
 
     const mapRef = useRef();
+
+    useEffect(() => {
+        if (coordonnees.length > 0 && mapRef.current) {
+            const map = mapRef.current;
+
+            if (coordonnees.length === 1) {
+                map.setView([coordonnees[0].latitude, coordonnees[0].longitude], 20);
+            } else {
+                const bounds = calculateBounds(coordonnees);
+                if (bounds) {
+                    map.fitBounds(bounds, { padding: [20, 20], maxZoom: 20 });
+                }
+            }
+        }
+    }, [coordonnees, mapRef.current]);  // 👈 on ajoute la carte comme dépendance
+
+
+
+    console.log("mapRef.current:", mapRef.current);
+
+
+    useEffect(() => {
+        if (parcelleData && parcelleData.coordinates) {
+            console.log('Données de parcelle reçues:', parcelleData);
+
+            // Convertir les coordonnées UTM en Lat/Lng
+            const convertedCoords = parcelleData.coordinates.map(point => {
+                try {
+                    const converted = convertUTMtoLatLng(point.x, point.y);
+                    return {
+                        latitude: converted.latitude,
+                        longitude: converted.longitude,
+                        originalUTM: { x: point.x, y: point.y }
+                    };
+                } catch (error) {
+                    console.error('Erreur conversion point:', point, error);
+                    return null;
+                }
+            }).filter(coord => coord !== null);
+
+            setCoordonnees(convertedCoords);
+            setIsLoading(false); // Chargement terminé
+            console.log('Coordonnées converties:', convertedCoords);
+        } else {
+            setIsLoading(false); // Aucune donnée à charger
+        }
+    }, [parcelleData]);
+
+
+
+
+
+
+    // Centrer automatiquement la carte sur la parcelle quand les coordonnées sont chargées
+    useEffect(() => {
+        if (coordonnees.length > 0 && mapRef.current) {
+            // Petit délai pour s'assurer que la carte est bien initialisée
+            setTimeout(() => {
+                centerOnParcelleWithMaxZoom();
+            }, 500);
+        }
+    }, [coordonnees]);
+
+    // Fonction pour centrer avec zoom maximal
+    const centerOnParcelleWithMaxZoom = () => {
+        if (coordonnees.length === 0 || !mapRef.current) return;
+
+        const map = mapRef.current;
+
+        if (coordonnees.length === 1) {
+            // Si un seul point, zoom maximal (niveau 20)
+            map.setView([coordonnees[0].latitude, coordonnees[0].longitude], 20);
+        } else {
+            // Pour plusieurs points, fitBounds avec padding minimal pour zoom maximal
+            const bounds = calculateBounds(coordonnees);
+            if (bounds) {
+                map.fitBounds(bounds, {
+                    padding: [1, 1], // Padding minimal pour zoom maximal
+                    maxZoom: 20 // Zoom maximal autorisé
+                });
+            }
+        }
+    };
 
     // Charger automatiquement le fichier litige.geojson
     useEffect(() => {
         const loadAllGeoJSONData = async () => {
             try {
+                // Liste de tous les fichiers GeoJSON à charger
+                const geoJsonFiles = [
+                    { name: 'litige', url: '/litige.geojson', setter: setLitigeData },
+                    { name: 'titre_reconstitue', url: '/titre_reconstitue.geojson', setter: setTitreReconstitueData },
+                    { name: 'tf_etat', url: '/tf_etat.geojson', setter: setTfEtatData },
+                    { name: 'tf_en_cours', url: '/tf_en_cours.geojson', setter: setTfEnCoursData },
+                    { name: 'tf_demembres', url: '/tf_demembres.geojson', setter: setTfDemembresData },
+                    // Nouvelles couches
+                    { name: 'zone_inondable', url: '/zone_inondable.geojson', setter: setZoneInondableData },
+                    { name: 'restriction', url: '/restriction.geojson', setter: setRestrictionData },
+                    { name: 'enregistrement_individuel', url: '/enregistrement_individuel.geojson', setter: setEnregistrementIndividuelData },
+                    { name: 'dpm', url: '/dpm.geojson', setter: setDpmData },
+                    { name: 'dpl', url: '/dpl.geojson', setter: setDplData },
+                    { name: 'air_proteges', url: '/air_proteges.geojson', setter: setAirProtegesData },
+                    { name: 'aif', url: '/aif.geojson', setter: setAifData }
+                ];
+
                 // Charger tous les fichiers en parallèle
-                const [
-                    litigeResponse,
-                    titreReconstitueResponse,
-                    tfEtatResponse,
-                    tfEnCoursResponse,
-                    tfDemembresResponse
-                ] = await Promise.all([
-                    fetch('/litige.geojson'),
-                    fetch('/titre_reconstitue.geojson'),
-                    fetch('/tf_etat.geojson'),
-                    fetch('/tf_en_cours.geojson'),
-                    fetch('/tf_demembres.geojson')
-                ]);
+                const responses = await Promise.all(
+                    geoJsonFiles.map(file =>
+                        fetch(file.url)
+                            .then(response => {
+                                if (!response.ok) {
+                                    console.warn(`Fichier ${file.name} non trouvé: ${file.url}`);
+                                    return null;
+                                }
+                                return response.json();
+                            })
+                            .catch(error => {
+                                console.warn(`Erreur chargement ${file.name}:`, error);
+                                return null;
+                            })
+                    )
+                );
 
-                // Vérifier les réponses
-                if (!litigeResponse.ok) throw new Error('Fichier litige.geojson non trouvé');
-                if (!titreReconstitueResponse.ok) throw new Error('Fichier titre_reconstitue.geojson non trouvé');
-                if (!tfEtatResponse.ok) throw new Error('Fichier tf_etat.geojson non trouvé');
-                if (!tfEnCoursResponse.ok) throw new Error('Fichier tf_en_cours.geojson non trouvé');
-                if (!tfDemembresResponse.ok) throw new Error('Fichier tf_demembres.geojson non trouvé');
+                // Mettre à jour les états avec les données chargées
+                responses.forEach((data, index) => {
+                    if (data && geoJsonFiles[index].setter) {
+                        geoJsonFiles[index].setter(data);
+                    }
+                });
 
-                // Parser les données
-                const [
-                    litigeData,
-                    titreReconstitueData,
-                    tfEtatData,
-                    tfEnCoursData,
-                    tfDemembresData
-                ] = await Promise.all([
-                    litigeResponse.json(),
-                    titreReconstitueResponse.json(),
-                    tfEtatResponse.json(),
-                    tfEnCoursResponse.json(),
-                    tfDemembresResponse.json()
-                ]);
-
-                // Mettre à jour les états
-                setLitigeData(litigeData);
-                setTitreReconstitueData(titreReconstitueData);
-                setTfEtatData(tfEtatData);
-                setTfEnCoursData(tfEnCoursData);
-                setTfDemembresData(tfDemembresData);
-
-                console.log('Tous les fichiers GeoJSON chargés avec succès!');
+                console.log('Chargement des fichiers GeoJSON terminé!');
 
             } catch (error) {
                 console.error('Erreur chargement GeoJSON:', error);
@@ -118,6 +236,7 @@ const ParcelleMap = () => {
     };
 
     // Convertir les coordonnées GeoJSON UTM en WGS84
+    // Convertir les coordonnées GeoJSON UTM en WGS84
     const convertGeoJSONCoordinates = (geoJSONData) => {
         if (!geoJSONData || !geoJSONData.features) return null;
 
@@ -128,15 +247,22 @@ const ParcelleMap = () => {
                     return feature; // Retourner la feature inchangée si pas de coordonnées
                 }
 
-                const convertedCoordinates = feature.geometry.coordinates.map(polygon =>
-                    polygon.map(ring =>
-                        ring.map(coord => {
+                const convertCoordinateArray = (coords) => {
+                    return coords.map(coord => {
+                        // Si c'est un tableau de coordonnées (ligne ou polygone)
+                        if (Array.isArray(coord[0])) {
+                            return convertCoordinateArray(coord);
+                        } else {
+                            // Prendre seulement les 2 premières valeurs (x, y) et ignorer z si présent
+                            const [x, y] = coord;
                             // Conversion UTM -> WGS84
-                            const converted = convertUTMtoLatLng(coord[0], coord[1]);
+                            const converted = convertUTMtoLatLng(x, y);
                             return [converted.longitude, converted.latitude];
-                        })
-                    )
-                );
+                        }
+                    });
+                };
+
+                const convertedCoordinates = convertCoordinateArray(feature.geometry.coordinates);
 
                 return {
                     ...feature,
@@ -146,18 +272,19 @@ const ParcelleMap = () => {
                     }
                 };
             } catch (error) {
-                console.error('Erreur conversion feature:', error);
-                return feature;
+                console.error('Erreur conversion feature:', error, feature);
+                return null; // Retourner null pour filtrer les features problématiques
             }
-        });
+        }).filter(feature => feature !== null); // Filtrer les features null
 
         return {
             ...geoJSONData,
             features: convertedFeatures
         };
     };
-
     // Styles pour les différentes couches
+
+
     const getLayerStyle = (layerType) => {
         const styles = {
             litige: {
@@ -190,6 +317,56 @@ const ParcelleMap = () => {
                 fillOpacity: 0.5
             },
             tfDemembres: {
+                fillColor: '#9c27b0',
+                weight: 2,
+                opacity: 1,
+                color: '#7b1fa2',
+                fillOpacity: 0.4
+            },
+
+            // Nouveaux styles pour les nouvelles couches
+            zoneInondable: {
+                fillColor: '#00bcd4',
+                weight: 2,
+                opacity: 1,
+                color: '#0097a7',
+                dashArray: '5, 5',
+                fillOpacity: 0.3
+            },
+            restriction: {
+                fillColor: '#ff5722',
+                weight: 3,
+                opacity: 1,
+                color: '#d84315',
+                fillOpacity: 0.4
+            },
+            enregistrementIndividuel: {
+                fillColor: '#8bc34a',
+                weight: 2,
+                opacity: 1,
+                color: '#689f38',
+                fillOpacity: 0.5
+            },
+            dpm: {
+                color: '#2196f3',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 5'
+            },
+            dpl: {
+                color: '#3f51b5',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '8, 4'
+            },
+            airProteges: {
+                fillColor: '#4caf50',
+                weight: 3,
+                opacity: 1,
+                color: '#388e3c',
+                fillOpacity: 0.3
+            },
+            aif: {
                 fillColor: '#9c27b0',
                 weight: 2,
                 opacity: 1,
@@ -279,6 +456,100 @@ const ParcelleMap = () => {
                     `;
                     break;
 
+                case 'zoneInondable':
+                    popupContent = `
+                    <div class="p-2 max-w-sm">
+                        <h4 class="font-bold text-lg mb-2">🌊 Zone Inondable</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>Source:</strong> ${feature.properties.source || 'N/A'}</p>
+                            <p><strong>Longueur:</strong> ${feature.properties.shape_leng ? `${feature.properties.shape_leng.toLocaleString()} m` : 'N/A'}</p>
+                            <p><strong>Surface:</strong> ${feature.properties.shape_area ? `${feature.properties.shape_area.toLocaleString()} m²` : 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+                    break;
+
+                case 'restriction':
+                    popupContent = `
+                    <div class="p-2 max-w-sm">
+                        <h4 class="font-bold text-lg mb-2">🚫 Zone à Restriction</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>Type:</strong> ${feature.properties.type || 'N/A'}</p>
+                            <p><strong>Désignation:</strong> ${feature.properties.designation || feature.properties.designation_alea || 'N/A'}</p>
+                            <p><strong>Commune:</strong> ${feature.properties.commune || 'N/A'}</p>
+                            ${feature.properties.id ? `<p><strong>ID:</strong> ${feature.properties.id}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+                    break;
+
+                case 'enregistrementIndividuel':
+                    popupContent = `
+                    <div class="p-2 max-w-sm">
+                        <h4 class="font-bold text-lg mb-2">🏠 Enregistrement Individuel</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>Parcelle:</strong> ${feature.properties.CODE_PARCELLE || 'N/A'}</p>
+                            <p><strong>Commune:</strong> ${feature.properties.COMMUNE || 'N/A'}</p>
+                            <p><strong>Arrondissement:</strong> ${feature.properties.ARRONDISSEMENT || 'N/A'}</p>
+                            <p><strong>Quartier:</strong> ${feature.properties.VILLAGE_QUARTIER || 'N/A'}</p>
+                            <p><strong>Surface:</strong> ${feature.properties.SUPERFICIE ? `${feature.properties.SUPERFICIE} m²` : 'N/A'}</p>
+                            <p><strong>Type:</strong> ${feature.properties['TYPE DE PARCELLE'] || 'N/A'}</p>
+                            <p><strong>Droit:</strong> ${feature.properties['TYPE DE DROIT'] || 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+                    break;
+
+                case 'dpm':
+                    popupContent = `
+                    <div class="p-2 max-w-sm">
+                        <h4 class="font-bold text-lg mb-2">🌊 Domaine Public Maritime</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>Type:</strong> ${feature.properties.type || 'Domaine Public Maritime'}</p>
+                        </div>
+                    </div>
+                `;
+                    break;
+
+                case 'dpl':
+                    popupContent = `
+                    <div class="p-2 max-w-sm">
+                        <h4 class="font-bold text-lg mb-2">🌊 Domaine Public Fluvial</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>Couche:</strong> ${feature.properties.Layer || 'Domaine Public Fluvial'}</p>
+                        </div>
+                    </div>
+                `;
+                    break;
+
+                case 'airProteges':
+                    popupContent = `
+                    <div class="p-2 max-w-sm">
+                        <h4 class="font-bold text-lg mb-2">🛡️ Aire Protégée</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>Désignation:</strong> ${feature.properties.designation || 'N/A'}</p>
+                            <p><strong>Désignation Aléa:</strong> ${feature.properties.designation_alea || 'N/A'}</p>
+                            ${feature.properties.id ? `<p><strong>ID:</strong> ${feature.properties.id}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+                    break;
+
+                case 'aif':
+                    popupContent = `
+                    <div class="p-2 max-w-sm">
+                        <h4 class="font-bold text-lg mb-2">🏛️ AIF</h4>
+                        <div class="space-y-1 text-sm">
+                            <p><strong>Département:</strong> ${feature.properties.departement || 'N/A'}</p>
+                            <p><strong>Commune:</strong> ${feature.properties.commune || 'N/A'}</p>
+                            <p><strong>Arrondissement:</strong> ${feature.properties.arrondissement || 'N/A'}</p>
+                            <p><strong>Numéro TF:</strong> ${feature.properties.num_tf || 'N/A'}</p>
+                            <p><strong>TF Aléa:</strong> ${feature.properties.TF_alea || 'N/A'}</p>
+                        </div>
+                    </div>
+                `;
+                    break;
+
                 default:
                     popupContent = `<div class="p-2"><p>Propriétés: ${JSON.stringify(feature.properties)}</p></div>`;
             }
@@ -287,12 +558,36 @@ const ParcelleMap = () => {
         }
     };
 
+    // Fonction pour calculer l'aire (algorithme de shoelace)
+    const calculateArea = (coordinates) => {
+        if (coordinates.length < 3) return 0;
+
+        let area = 0;
+        const n = coordinates.length;
+
+        for (let i = 0; i < n; i++) {
+            const j = (i + 1) % n;
+            area += coordinates[i].longitude * coordinates[j].latitude;
+            area -= coordinates[j].longitude * coordinates[i].latitude;
+        }
+
+        return Math.abs(area) / 2 * 111319.444 * 111319.444; // Conversion en m² approximative
+    };
+
     // Convertir toutes les données GeoJSON
     const convertedLitigeData = litigeData ? convertGeoJSONCoordinates(litigeData) : null;
     const convertedTitreReconstitueData = titreReconstitueData ? convertGeoJSONCoordinates(titreReconstitueData) : null;
     const convertedTfEtatData = tfEtatData ? convertGeoJSONCoordinates(tfEtatData) : null;
     const convertedTfEnCoursData = tfEnCoursData ? convertGeoJSONCoordinates(tfEnCoursData) : null;
     const convertedTfDemembresData = tfDemembresData ? convertGeoJSONCoordinates(tfDemembresData) : null;
+
+    const convertedZoneInondableData = zoneInondableData ? convertGeoJSONCoordinates(zoneInondableData) : null;
+    const convertedRestrictionData = restrictionData ? convertGeoJSONCoordinates(restrictionData) : null;
+    const convertedEnregistrementIndividuelData = enregistrementIndividuelData ? convertGeoJSONCoordinates(enregistrementIndividuelData) : null;
+    const convertedDpmData = dpmData ? convertGeoJSONCoordinates(dpmData) : null;
+    const convertedDplData = dplData ? convertGeoJSONCoordinates(dplData) : null;
+    const convertedAirProtegesData = airProtegesData ? convertGeoJSONCoordinates(airProtegesData) : null;
+    const convertedAifData = aifData ? convertGeoJSONCoordinates(aifData) : null;
 
     // Ouvrir la modale pour ajouter de nouvelles coordonnées
     const openAddModal = () => {
@@ -377,13 +672,22 @@ const ParcelleMap = () => {
 
     // Calculer le centre de la parcelle
     const calculateCenter = (coords) => {
-        if (coords.length === 0) return [6.3703, 2.3912];
+        if (coords.length === 0) {
+            console.log('Aucune coordonnée, centre par défaut');
+            return [6.3703, 2.3912];
+        }
+
+        console.log('Calcul du centre pour les coordonnées:', coords);
+
         const lats = coords.map(coord => coord.latitude);
         const lngs = coords.map(coord => coord.longitude);
         const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
         const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+
+        console.log('Centre calculé:', centerLat, centerLng);
         return [centerLat, centerLng];
     };
+
 
     // Calculer les bounds de la parcelle
     const calculateBounds = (coords) => {
@@ -391,20 +695,9 @@ const ParcelleMap = () => {
         return L.latLngBounds(coords.map(c => [c.latitude, c.longitude]));
     };
 
-    // Centrer la carte sur la parcelle
+    // Centrer la carte sur la parcelle (version manuelle)
     const centerOnParcelle = () => {
-        if (coordonnees.length === 0) return;
-        const map = mapRef.current;
-        if (!map) return;
-
-        if (coordonnees.length === 1) {
-            map.setView([coordonnees[0].latitude, coordonnees[0].longitude], 18);
-        } else {
-            const bounds = calculateBounds(coordonnees);
-            if (bounds) {
-                map.fitBounds(bounds, { padding: [20, 20] });
-            }
-        }
+        centerOnParcelleWithMaxZoom();
     };
 
     // Valider toutes les coordonnées
@@ -443,373 +736,783 @@ const ParcelleMap = () => {
         }
     };
 
-    // Exporter en JSON UTM
-    const exportToJson = () => {
-        const exportData = coordonnees.map(coord =>
-            coord.originalUTM ? coord.originalUTM : { x: coord.longitude, y: coord.latitude }
-        );
-        setJsonInput(JSON.stringify(exportData, null, 2));
-        setShowJsonInput(true);
-    };
 
-    const center = calculateCenter(coordonnees);
+
+    // const center = calculateCenter(coordonnees);
+    const center = isLoading ? [6.3703, 2.3912] : calculateCenter(coordonnees);
+
     const polygonCoords = coordonnees.map(coord => [coord.latitude, coord.longitude]);
     // const convertedLitigeData = litigeData ? convertGeoJSONCoordinates(litigeData) : null;
 
     return (
         <div className="h-screen w-screen flex flex-col relative">
-            <Navbar />
+            {/* <Navbar /> */}
 
             {/* Boutons de contrôle */}
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3 flex-wrap">
                     <button
-                        onClick={openAddModal}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        onClick={() => {
+                            navigate("/start", { state: {}, replace: true });
+                        }}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                     >
-                        + Ajouter des bornes
+                        ← Retour
                     </button>
+                    {parcelleData && (
+                        <div className="flex items-center gap-2">
+                            <div className="bg-green-50 px-3 py-1 rounded-lg border border-green-200">
+                                <span className="text-green-700 font-medium">✓</span>
+                                {/* <span className="text-green-600 text-sm">
+                                    ({coordonnees.length} points)
+                                </span> */}
+                            </div>
+                            {/* Bouton pour ouvrir le modal d'informations */}
+                            <button
+                                onClick={() => setIsInfoModalOpen(true)}
+                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1 text-sm"
+                            >
+                                <InfoIcon />
+                                Détails
+                            </button>
+                        </div>
+                    )}
 
-                    {/* {coordonnees.length > 0 && (
-                        <button
-                            onClick={exportToJson}
-                            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                        >
-                            📋 Exporter en JSON UTM
-                        </button>
-                    )} */}
+
+
 
                     {/* Checkboxes pour afficher/masquer les couches */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {litigeData && (
-                            <LayerCheckbox
-                                label="🔍 Litiges"
-                                checked={showLitige}
-                                onChange={setShowLitige}
-                                color="orange"
-                            />
-                        )}
-                        {titreReconstitueData && (
-                            <LayerCheckbox
-                                label="📄 Titres Reconstitués"
-                                checked={showTitreReconstitue}
-                                onChange={setShowTitreReconstitue}
-                                color="green"
-                            />
-                        )}
-                        {tfEtatData && (
-                            <LayerCheckbox
-                                label="🏛️ TF État"
-                                checked={showTfEtat}
-                                onChange={setShowTfEtat}
-                                color="blue"
-                            />
-                        )}
-                        {tfEnCoursData && (
-                            <LayerCheckbox
-                                label="⏳ TF en Cours"
-                                checked={showTfEnCours}
-                                onChange={setShowTfEnCours}
-                                color="yellow"
-                            />
-                        )}
-                        {tfDemembresData && (
-                            <LayerCheckbox
-                                label="🏠 TF Démembrés"
-                                checked={showTfDemembres}
-                                onChange={setShowTfDemembres}
-                                color="purple"
-                            />
-                        )}
-                    </div>
+
+
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <span className="text-gray-600">
-                        {coordonnees.length} borne(s) définie(s)
-                    </span>
-                    {coordonnees.length >= 1 && (
-                        <button
-                            onClick={centerOnParcelle}
-                            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
-                        >
-                            🎯 Centrer sur la parcelle
-                        </button>
-                    )}
+
+                    <button
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
+                    >
+                        <Layers />
+                        {isSidebarOpen ? 'Masquer les couches' : 'Afficher les couches'}
+                    </button>
+
                 </div>
             </div>
 
             {/* Map */}
-            {/* Map */}
             <div className="flex-1 w-full">
-                <MapContainer
-                    center={center}
-                    zoom={15}
-                    className="h-full w-full"
-                    scrollWheelZoom={true}
-                    whenCreated={(mapInstance) => {
-                        mapRef.current = mapInstance;
-                    }}
-                >
-                    <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
 
-                    {/* Couches GeoJSON */}
-                    {showLitige && convertedLitigeData && (
-                        <GeoJSON
-                            data={convertedLitigeData}
-                            style={() => getLayerStyle('litige')}
-                            onEachFeature={onEachFeature('litige')}
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <p className="text-gray-600">⏳ Chargement de la carte...</p>
+                    </div>
+                ) : (
+                    <MapContainer
+                        center={calculateCenter(coordonnees)}
+                        zoom={200}
+                        className="h-full w-full"
+                        scrollWheelZoom={true}
+                        whenCreated={(mapInstance) => {
+                            mapRef.current = mapInstance;
+                        }}
+                    >
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                         />
-                    )}
 
-                    {showTitreReconstitue && convertedTitreReconstitueData && (
-                        <GeoJSON
-                            data={convertedTitreReconstitueData}
-                            style={() => getLayerStyle('titreReconstitue')}
-                            onEachFeature={onEachFeature('titreReconstitue')}
-                        />
-                    )}
+                        {/* Couches GeoJSON */}
+                        {showLitige && convertedLitigeData && (
+                            <GeoJSON
+                                data={convertedLitigeData}
+                                style={() => getLayerStyle('litige')}
+                                onEachFeature={onEachFeature('litige')}
+                            />
+                        )}
 
-                    {showTfEtat && convertedTfEtatData && (
-                        <GeoJSON
-                            data={convertedTfEtatData}
-                            style={() => getLayerStyle('tfEtat')}
-                            onEachFeature={onEachFeature('tfEtat')}
-                        />
-                    )}
+                        {showTitreReconstitue && convertedTitreReconstitueData && (
+                            <GeoJSON
+                                data={convertedTitreReconstitueData}
+                                style={() => getLayerStyle('titreReconstitue')}
+                                onEachFeature={onEachFeature('titreReconstitue')}
+                            />
+                        )}
 
-                    {showTfEnCours && convertedTfEnCoursData && (
-                        <GeoJSON
-                            data={convertedTfEnCoursData}
-                            style={() => getLayerStyle('tfEnCours')}
-                            onEachFeature={onEachFeature('tfEnCours')}
-                        />
-                    )}
+                        {showTfEtat && convertedTfEtatData && (
+                            <GeoJSON
+                                data={convertedTfEtatData}
+                                style={() => getLayerStyle('tfEtat')}
+                                onEachFeature={onEachFeature('tfEtat')}
+                            />
+                        )}
 
-                    {showTfDemembres && convertedTfDemembresData && (
-                        <GeoJSON
-                            data={convertedTfDemembresData}
-                            style={() => getLayerStyle('tfDemembres')}
-                            onEachFeature={onEachFeature('tfDemembres')}
-                        />
-                    )}
+                        {showTfEnCours && convertedTfEnCoursData && (
+                            <GeoJSON
+                                data={convertedTfEnCoursData}
+                                style={() => getLayerStyle('tfEnCours')}
+                                onEachFeature={onEachFeature('tfEnCours')}
+                            />
+                        )}
 
-                    {/* Polygone de la parcelle */}
-                    {coordonnees.length >= 3 && (
-                        <Polygon
-                            positions={polygonCoords}
-                            pathOptions={{
-                                color: 'blue',
-                                fillColor: 'lightblue',
-                                fillOpacity: 0.4,
-                                weight: 2
-                            }}
-                        >
-                            <Popup>
-                                <div className="p-2">
-                                    <h4 className="font-semibold text-lg mb-2">Parcelle</h4>
-                                    <p className="text-sm">Nombre de bornes: {coordonnees.length}</p>
-                                    <button
-                                        onClick={centerOnParcelle}
-                                        className="mt-2 px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors text-sm w-full"
-                                    >
-                                        Centrer sur la parcelle
-                                    </button>
-                                </div>
-                            </Popup>
-                        </Polygon>
-                    )}
+                        {showTfDemembres && convertedTfDemembresData && (
+                            <GeoJSON
+                                data={convertedTfDemembresData}
+                                style={() => getLayerStyle('tfDemembres')}
+                                onEachFeature={onEachFeature('tfDemembres')}
+                            />
+                        )}
 
-                    {/* Marqueurs des bornes */}
-                    {coordonnees.map((coord, index) => (
-                        <Marker
-                            key={index}
-                            position={[coord.latitude, coord.longitude]}
-                            eventHandlers={{ click: () => openEditModal(index) }}
-                        >
-                            <Popup>
-                                <div className="p-2 min-w-[250px]">
-                                    <h4 className="font-semibold text-lg mb-2">Borne {index + 1}</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div>
-                                            <p className="font-medium">WGS84 (carte):</p>
-                                            <p>Lat: {coord.latitude.toFixed(6)}°</p>
-                                            <p>Lng: {coord.longitude.toFixed(6)}°</p>
-                                        </div>
-                                        {coord.originalUTM && (
-                                            <div>
-                                                <p className="font-medium">UTM 31N (original):</p>
-                                                <p>X: {coord.originalUTM.x}</p>
-                                                <p>Y: {coord.originalUTM.y}</p>
+                        {showZoneInondable && convertedZoneInondableData && (
+                            <GeoJSON
+                                data={convertedZoneInondableData}
+                                style={() => getLayerStyle('zoneInondable')}
+                                onEachFeature={onEachFeature('zoneInondable')}
+                            />
+                        )}
+
+                        {showRestriction && convertedRestrictionData && (
+                            <GeoJSON
+                                data={convertedRestrictionData}
+                                style={() => getLayerStyle('restriction')}
+                                onEachFeature={onEachFeature('restriction')}
+                            />
+                        )}
+
+                        {showEnregistrementIndividuel && convertedEnregistrementIndividuelData && (
+                            <GeoJSON
+                                data={convertedEnregistrementIndividuelData}
+                                style={() => getLayerStyle('enregistrementIndividuel')}
+                                onEachFeature={onEachFeature('enregistrementIndividuel')}
+                            />
+                        )}
+
+                        {showDpm && convertedDpmData && (
+                            <GeoJSON
+                                data={convertedDpmData}
+                                style={() => getLayerStyle('dpm')}
+                                onEachFeature={onEachFeature('dpm')}
+                            />
+                        )}
+
+                        {showDpl && convertedDplData && (
+                            <GeoJSON
+                                data={convertedDplData}
+                                style={() => getLayerStyle('dpl')}
+                                onEachFeature={onEachFeature('dpl')}
+                            />
+                        )}
+
+                        {showAirProteges && convertedAirProtegesData && (
+                            <GeoJSON
+                                data={convertedAirProtegesData}
+                                style={() => getLayerStyle('airProteges')}
+                                onEachFeature={onEachFeature('airProteges')}
+                            />
+                        )}
+
+                        {showAif && convertedAifData && (
+                            <GeoJSON
+                                data={convertedAifData}
+                                style={() => getLayerStyle('aif')}
+                                onEachFeature={onEachFeature('aif')}
+                            />
+                        )}
+                        {/* Polygone de la parcelle */}
+                        {coordonnees.length >= 3 && (
+                            <Polygon
+                                positions={polygonCoords}
+                                pathOptions={{
+                                    color: 'blue',
+                                    fillColor: 'lightblue',
+                                    fillOpacity: 0.4,
+                                    weight: 2
+                                }}
+                            >
+                                <Popup>
+                                    <div className="p-2">
+                                        <h4 className="font-semibold text-lg mb-2">Parcelle chargée</h4>
+                                        <p className="text-sm">Nombre de bornes: {coordonnees.length}</p>
+                                        <p className="text-sm">Surface: {calculateArea(coordonnees).toFixed(2)} m²</p>
+
+                                        {/* Afficher les données textuelles si disponibles */}
+                                        {parcelleData && parcelleData.textualData && (
+                                            <div className="mt-2 pt-2 border-t">
+                                                <p className="text-sm font-medium">Statut:</p>
+                                                <div className="text-xs space-y-1 mt-1">
+                                                    {Object.entries(parcelleData.textualData).map(([key, value]) => (
+                                                        <div key={key} className="flex justify-between">
+                                                            <span>{key}:</span>
+                                                            <span className={`font-semibold ${value === "OUI" ? "text-green-600" : "text-red-600"}`}>
+                                                                {value}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
+
                                     </div>
-                                    <button
-                                        onClick={() => deleteCoord(index)}
-                                        className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm w-full"
-                                    >
-                                        Supprimer
-                                    </button>
-                                </div>
-                            </Popup>
-                        </Marker>
-                    ))}
-                </MapContainer>
+                                </Popup>
+                            </Polygon>
+                        )}
+
+                        {/* Marqueurs des bornes */}
+                        {coordonnees.map((coord, index) => (
+                            <Marker
+                                key={index}
+                                position={[coord.latitude, coord.longitude]}
+                                eventHandlers={{ click: () => openEditModal(index) }}
+                            >
+                                <Popup>
+                                    <div className="p-2 min-w-[250px]">
+                                        <h4 className="font-semibold text-lg mb-2">Borne {index + 1}</h4>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div>
+                                                <p className="font-medium">WGS84 (carte):</p>
+                                                <p>Lat: {coord.latitude.toFixed(6)}°</p>
+                                                <p>Lng: {coord.longitude.toFixed(6)}°</p>
+                                            </div>
+                                            {coord.originalUTM && (
+                                                <div>
+                                                    <p className="font-medium">UTM 31N (original):</p>
+                                                    <p>X: {coord.originalUTM.x}</p>
+                                                    <p>Y: {coord.originalUTM.y}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            onClick={() => deleteCoord(index)}
+                                            className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm w-full"
+                                        >
+                                            Supprimer
+                                        </button>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        ))}
+                    </MapContainer>
+
+                )}
             </div>
 
-            {/* Modale */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden">
+
+            {/* Modal d'informations de la parcelle */}
+            {isInfoModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-start z-[1000] p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md ml-4 max-h-[90vh] overflow-hidden">
                         <div className="p-6 overflow-y-auto max-h-[80vh]">
-                            <h3 className="text-xl font-semibold mb-4">
-                                {editingIndex !== null ? `Modifier la borne ${editingIndex + 1}` : 'Ajouter des bornes UTM'}
-                            </h3>
-
-                            {editingIndex === null && !showJsonInput && (
-                                <div className="mb-4">
-                                    <button
-                                        onClick={() => setShowJsonInput(true)}
-                                        className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-2"
-                                    >
-                                        📥 Importer depuis JSON UTM
-                                    </button>
-                                    <p className="text-sm text-gray-600 mt-1">Format UTM 31N</p>
-                                </div>
-                            )}
-
-                            {showJsonInput && (
-                                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Collez votre JSON UTM ici (Zone 31N):
-                                    </label>
-                                    <textarea
-                                        value={jsonInput}
-                                        onChange={(e) => setJsonInput(e.target.value)}
-                                        className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                                        placeholder='[{"x": 401374.38, "y": 712334.71}, ...]'
-                                    />
-                                    <div className="flex gap-2 mt-2">
-                                        <button
-                                            onClick={parseJsonInput}
-                                            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                                        >
-                                            Convertir et Importer
-                                        </button>
-                                        <button
-                                            onClick={() => setShowJsonInput(false)}
-                                            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-                                        >
-                                            Annuler
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {!showJsonInput && (
-                                <>
-                                    <div className="space-y-4 mb-6">
-                                        {tempCoords.map((coord, index) => (
-                                            <div key={index} className="flex items-end gap-3">
-                                                <div className="flex-1 grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Latitude {tempCoords.length > 1 ? index + 1 : ''}
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            step="any"
-                                                            value={coord.latitude}
-                                                            onChange={(e) => updateTempCoord(index, 'latitude', e.target.value)}
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            placeholder="Latitude en degrés"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Longitude {tempCoords.length > 1 ? index + 1 : ''}
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            step="any"
-                                                            value={coord.longitude}
-                                                            onChange={(e) => updateTempCoord(index, 'longitude', e.target.value)}
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            placeholder="Longitude en degrés"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {tempCoords.length > 1 && (
-                                                    <button
-                                                        onClick={() => removeCoordField(index)}
-                                                        className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors mb-1"
-                                                    >
-                                                        ×
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {editingIndex === null && (
-                                        <button
-                                            onClick={addCoordField}
-                                            className="mb-6 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
-                                        >
-                                            <span>+</span> Ajouter une autre borne
-                                        </button>
-                                    )}
-                                </>
-                            )}
-
-                            <div className="flex gap-3 justify-end">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-semibold">📋 Informations de la parcelle</h3>
                                 <button
-                                    onClick={closeModal}
-                                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+                                    onClick={() => setIsInfoModalOpen(false)}
+                                    className="p-1 hover:bg-gray-100 rounded"
                                 >
-                                    Annuler
+                                    ✕
                                 </button>
-                                {!showJsonInput && (
-                                    <button
-                                        onClick={saveAllCoords}
-                                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                                    >
-                                        {editingIndex !== null ? 'Modifier' : `Valider ${tempCoords.length} borne(s)`}
-                                    </button>
-                                )}
                             </div>
+
+                            {parcelleData && parcelleData.textualData && (
+                                <div className="space-y-4">
+
+
+                                    {/* Données textuelles */}
+                                    <div>
+                                        <h4 className="font-semibold mb-3">📊 Statut de la parcelle</h4>
+                                        <div className="space-y-2">
+                                            {Object.entries(parcelleData.textualData).map(([key, value]) => {
+                                                // Mapping des clés techniques vers des libellés compréhensibles
+                                                const labels = {
+                                                    'enregistrement_individuel': 'Enregistrement Individuel',
+                                                    'litige': 'Litige en cours',
+                                                    'parcelles': 'Parcelles identifiées',
+                                                    'restriction': 'Restrictions applicables',
+                                                    'air_proteges': 'Aire protégée',
+                                                    'zone_inondable': 'Zone inondable',
+                                                    'dpm': 'Domaine Public Maritime',
+                                                    'dpl': 'Domaine Public Fluvial',
+                                                    'tf_etat': 'Titre Foncier État',
+                                                    'tf_en_cours': 'TF en cours d\'instruction',
+                                                    'tf_demembres': 'TF démembrés',
+                                                    'titre_reconstitue': 'Titre reconstitué',
+                                                    'aif': 'Acte d\'Identification Foncière'
+                                                };
+
+                                                const getIcon = (value) => {
+                                                    if (value === "OUI") return "✅";
+                                                    if (value === "NON") return "❌";
+                                                    return "ℹ️";
+                                                };
+
+                                                const getStatusText = (value) => {
+                                                    if (value === "OUI") return "Oui";
+                                                    if (value === "NON") return "Non";
+                                                    return value;
+                                                };
+
+                                                return (
+                                                    <div key={key} className="flex justify-between items-center p-3 bg-white border rounded-lg shadow-sm">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-lg">{getIcon(value)}</span>
+                                                            <div>
+                                                                <span className="text-sm font-medium text-gray-700 block">
+                                                                    {labels[key] || key.replace(/_/g, ' ').toUpperCase()}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <span className={`text-sm font-semibold px-3 py-1 rounded-full ${value === "OUI"
+                                                            ? "bg-green-100 text-green-800 border border-green-200"
+                                                            : value === "NON"
+                                                                ? "bg-red-100 text-red-800 border border-red-200"
+                                                                : "bg-blue-100 text-blue-800 border border-blue-200"
+                                                            }`}>
+                                                            {getStatusText(value)}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-2 pt-4 border-t">
+
+                                        <button
+                                            onClick={() => setIsInfoModalOpen(false)}
+                                            className="flex-1 px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                                        >
+                                            Fermer
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!parcelleData && (
+                                <div className="text-center py-8 text-gray-500">
+                                    <p>Aucune donnée de parcelle disponible</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Menu latéral */}
+            <div className={`
+                    fixed top-0 right-0 h-full  bg-white shadow-xl z-[1000] transition-transform duration-300 ease-in-out
+                    ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
+                    w-100
+                `}>
+                <div className="p-4 h-full flex flex-col">
+                    {/* En-tête du menu */}
+                    <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                        <h3 className="text-lg font-semibold">📋 Couches cartographiques</h3>
+                        <button
+                            onClick={() => setIsSidebarOpen(false)}
+                            className="p-1 hover:bg-gray-100 rounded"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    {/* Contenu défilable des couches */}
+                    <div className="flex-1 overflow-y-auto">
+                        <div className="space-y-3">
+                            {/* Groupes de couches */}
+                            <LayerGroup title="📊 Données principales">
+                                {litigeData && (
+                                    <LayerCheckbox
+                                        label="Litiges"
+                                        checked={showLitige}
+                                        onChange={setShowLitige}
+                                        color="orange"
+                                    />
+                                )}
+                                {titreReconstitueData && (
+                                    <LayerCheckbox
+                                        label="Titres Reconstitués"
+                                        checked={showTitreReconstitue}
+                                        onChange={setShowTitreReconstitue}
+                                        color="green"
+                                    />
+                                )}
+                                {tfEtatData && (
+                                    <LayerCheckbox
+                                        label="TF État"
+                                        checked={showTfEtat}
+                                        onChange={setShowTfEtat}
+                                        color="blue"
+                                    />
+                                )}
+                                {tfEnCoursData && (
+                                    <LayerCheckbox
+                                        label="TF en Cours"
+                                        checked={showTfEnCours}
+                                        onChange={setShowTfEnCours}
+                                        color="yellow"
+                                    />
+                                )}
+                                {tfDemembresData && (
+                                    <LayerCheckbox
+                                        label="TF Démembrés"
+                                        checked={showTfDemembres}
+                                        onChange={setShowTfDemembres}
+                                        color="purple"
+                                    />
+                                )}
+                            </LayerGroup>
+
+                            <LayerGroup title="🌍 Données environnementales">
+                                {zoneInondableData && (
+                                    <LayerCheckbox
+                                        label="Zones Inondables"
+                                        checked={showZoneInondable}
+                                        onChange={setShowZoneInondable}
+                                        color="cyan"
+                                    />
+                                )}
+                                {airProtegesData && (
+                                    <LayerCheckbox
+                                        label="Aires Protégées"
+                                        checked={showAirProteges}
+                                        onChange={setShowAirProteges}
+                                        color="green"
+                                    />
+                                )}
+                            </LayerGroup>
+
+                            <LayerGroup title="⚖️ Données réglementaires">
+                                {restrictionData && (
+                                    <LayerCheckbox
+                                        label="Restrictions"
+                                        checked={showRestriction}
+                                        onChange={setShowRestriction}
+                                        color="red"
+                                    />
+                                )}
+                                {dpmData && (
+                                    <LayerCheckbox
+                                        label="Domaine Public Maritime"
+                                        checked={showDpm}
+                                        onChange={setShowDpm}
+                                        color="blue"
+                                    />
+                                )}
+                                {dplData && (
+                                    <LayerCheckbox
+                                        label="Domaine Public Fluvial"
+                                        checked={showDpl}
+                                        onChange={setShowDpl}
+                                        color="indigo"
+                                    />
+                                )}
+                            </LayerGroup>
+
+                            <LayerGroup title="🏠 Données cadastrales">
+                                {enregistrementIndividuelData && (
+                                    <LayerCheckbox
+                                        label="Enregistrements Individuels"
+                                        checked={showEnregistrementIndividuel}
+                                        onChange={setShowEnregistrementIndividuel}
+                                        color="lightGreen"
+                                    />
+                                )}
+                                {aifData && (
+                                    <LayerCheckbox
+                                        label="AIF"
+                                        checked={showAif}
+                                        onChange={setShowAif}
+                                        color="purple"
+                                    />
+                                )}
+                            </LayerGroup>
+                        </div>
+                    </div>
+
+                    {/* Boutons d'action en bas du menu */}
+                    <div className="pt-4 border-t mt-auto">
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowLitige(true);
+                                    setShowTitreReconstitue(true);
+                                    setShowTfEtat(true);
+                                    setShowTfEnCours(true);
+                                    setShowTfDemembres(true);
+                                    setShowZoneInondable(true);
+                                    setShowRestriction(true);
+                                    setShowEnregistrementIndividuel(true);
+                                    setShowDpm(true);
+                                    setShowDpl(true);
+                                    setShowAirProteges(true);
+                                    setShowAif(true);
+                                }}
+                                className="flex-1 px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm"
+                            >
+                                ✅ Tout afficher
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowLitige(false);
+                                    setShowTitreReconstitue(false);
+                                    setShowTfEtat(false);
+                                    setShowTfEnCours(false);
+                                    setShowTfDemembres(false);
+                                    setShowZoneInondable(false);
+                                    setShowRestriction(false);
+                                    setShowEnregistrementIndividuel(false);
+                                    setShowDpm(false);
+                                    setShowDpl(false);
+                                    setShowAirProteges(false);
+                                    setShowAif(false);
+                                }}
+                                className="flex-1 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
+                            >
+                                ❌ Tout masquer
+                            </button>
+                        </div>
+
+
+                        {/* Légendes en bas de l'écran */}
+                        <div className="bg-white border-t border-gray-200 p-3">
+                            <div className="flex flex-wrap gap-4 justify-center">
+                                <LegendItem color="orange" label="Litiges" />
+                                <LegendItem color="green" label="Titres Reconstitués" />
+                                <LegendItem color="blue" label="TF État" />
+                                <LegendItem color="yellow" label="TF en Cours" />
+                                <LegendItem color="purple" label="TF Démembrés" />
+                                <LegendItem color="cyan" label="Zones Inondables" />
+                                <LegendItem color="red" label="Restrictions" />
+                                <LegendItem color="lightGreen" label="Enregistrements" />
+                                <LegendItem color="blue" label="DPM" lineStyle />
+                                <LegendItem color="indigo" label="DPL" lineStyle />
+                                <LegendItem color="green" label="Aires Protégées" />
+                                <LegendItem color="purple" label="AIF" />
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            {/* Overlay pour fermer le menu en cliquant à côté */}
+            {/* {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 z-[200]"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )} */}
+
+
+            {/* Légendes en bas de l'écran */}
+
+
+
+
+            {/* Modale */}
+            {
+                isModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
+                        <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden">
+                            <div className="p-6 overflow-y-auto max-h-[80vh]">
+                                <h3 className="text-xl font-semibold mb-4">
+                                    {editingIndex !== null ? `Modifier la borne ${editingIndex + 1}` : 'Ajouter des bornes UTM'}
+                                </h3>
+
+                                {editingIndex === null && !showJsonInput && (
+                                    <div className="mb-4">
+                                        <button
+                                            onClick={() => setShowJsonInput(true)}
+                                            className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors flex items-center gap-2"
+                                        >
+                                            📥 Importer depuis JSON UTM
+                                        </button>
+                                        <p className="text-sm text-gray-600 mt-1">Format UTM 31N</p>
+                                    </div>
+                                )}
+
+                                {showJsonInput && (
+                                    <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Collez votre JSON UTM ici (Zone 31N):
+                                        </label>
+                                        <textarea
+                                            value={jsonInput}
+                                            onChange={(e) => setJsonInput(e.target.value)}
+                                            className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                                            placeholder='[{"x": 401374.38, "y": 712334.71}, ...]'
+                                        />
+                                        <div className="flex gap-2 mt-2">
+                                            <button
+                                                onClick={parseJsonInput}
+                                                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                                            >
+                                                Convertir et Importer
+                                            </button>
+                                            <button
+                                                onClick={() => setShowJsonInput(false)}
+                                                className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+                                            >
+                                                Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!showJsonInput && (
+                                    <>
+                                        <div className="space-y-4 mb-6">
+                                            {tempCoords.map((coord, index) => (
+                                                <div key={index} className="flex items-end gap-3">
+                                                    <div className="flex-1 grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Latitude {tempCoords.length > 1 ? index + 1 : ''}
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="any"
+                                                                value={coord.latitude}
+                                                                onChange={(e) => updateTempCoord(index, 'latitude', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                placeholder="Latitude en degrés"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                Longitude {tempCoords.length > 1 ? index + 1 : ''}
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                step="any"
+                                                                value={coord.longitude}
+                                                                onChange={(e) => updateTempCoord(index, 'longitude', e.target.value)}
+                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                placeholder="Longitude en degrés"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    {tempCoords.length > 1 && (
+                                                        <button
+                                                            onClick={() => removeCoordField(index)}
+                                                            className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors mb-1"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        {editingIndex === null && (
+                                            <button
+                                                onClick={addCoordField}
+                                                className="mb-6 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors flex items-center gap-2"
+                                            >
+                                                <span>+</span> Ajouter une autre borne
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+
+                                <div className="flex gap-3 justify-end">
+                                    <button
+                                        onClick={closeModal}
+                                        className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+                                    >
+                                        Annuler
+                                    </button>
+                                    {!showJsonInput && (
+                                        <button
+                                            onClick={saveAllCoords}
+                                            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                                        >
+                                            {editingIndex !== null ? 'Modifier' : `Valider ${tempCoords.length} borne(s)`}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
+    );
+};
+
+
+
+// Composant légende amélioré
+const LegendItem = ({ color, label, lineStyle = false }) => {
+    const colorStyles = {
+        orange: 'bg-orange-500 border-orange-700',
+        green: 'bg-green-500 border-green-700',
+        blue: 'bg-blue-500 border-blue-700',
+        yellow: 'bg-yellow-500 border-yellow-700',
+        purple: 'bg-purple-500 border-purple-700',
+        cyan: 'bg-cyan-500 border-cyan-700',
+        red: 'bg-red-500 border-red-700',
+        lightGreen: 'bg-lime-500 border-lime-700',
+        indigo: 'bg-indigo-500 border-indigo-700'
+    };
+
+    return (
+        <div className="flex items-center gap-1">
+            {lineStyle ? (
+                <div className={`w-6 h-0.5 ${colorStyles[color]}`}></div>
+            ) : (
+                <div className={`w-3 h-3 border ${colorStyles[color]}`}></div>
+            )}
+            <span className="text-xs text-gray-700">{label}</span>
         </div>
     );
 };
 
+// Composant pour grouper les couches
+const LayerGroup = ({ title, children }) => (
+    <div className="border rounded-md">
+        <div className=" px-2 py-1 border-b">
+            <h4 className="font-semibold text-xs">{title}</h4>
+        </div>
+        <div className="p-1 space-y-0.5">
+            {children}
+        </div>
+    </div>
+);
+
+// Composant LayerCheckbox modifié pour le menu
 const LayerCheckbox = ({ label, checked, onChange, color }) => {
     const colorClasses = {
-        orange: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
-        green: 'bg-green-100 text-green-800 hover:bg-green-200',
-        blue: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
-        yellow: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
-        purple: 'bg-purple-100 text-purple-800 hover:bg-purple-200'
+        orange: 'border-orange-200 bg-orange-50',
+        green: 'border-green-200 bg-green-50',
+        blue: 'border-blue-200 bg-blue-50',
+        yellow: 'border-yellow-200 bg-yellow-50',
+        purple: 'border-purple-200 bg-purple-50',
+        cyan: 'border-cyan-200 bg-cyan-50',
+        red: 'border-red-200 bg-red-50',
+        lightGreen: 'border-lime-200 bg-lime-50',
+        indigo: 'border-indigo-200 bg-indigo-50'
     };
 
     return (
-        <label className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${colorClasses[color]}`}>
+        <label className={`flex items-center gap-1.5 p-1 rounded border transition-colors cursor-pointer ${colorClasses[color]} ${checked ? 'opacity-100' : 'opacity-60'}`}>
             <input
                 type="checkbox"
                 checked={checked}
                 onChange={(e) => onChange(e.target.checked)}
-                className="w-4 h-4 rounded focus:ring-2"
+                className="w-4 h-4 rounded focus:ring-1"
             />
-            <span className="font-medium text-sm">
-                {checked ? `🙈 ${label}` : `👁️ ${label}`}
+            <span className="text-sm font-medium">
+                {label}
             </span>
         </label>
     );
 };
+
+// Composant simple pour l'icône info
+const InfoIcon = () => (
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+    </svg>
+);
+
 
 export default ParcelleMap;

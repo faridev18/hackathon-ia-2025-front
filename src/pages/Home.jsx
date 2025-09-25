@@ -70,11 +70,11 @@ export default function Home() {
                             </p>
                             <div className="flex flex-wrap justify-center md:justify-start gap-4">
                                 <button className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100">
-                                    Découvrir la Démo
+                                    Verifier mon levé
                                 </button>
-                                <button className="border border-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600">
+                                {/* <button className="border border-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600">
                                     En savoir plus
-                                </button>
+                                </button> */}
                             </div>
                         </div>
 
@@ -204,7 +204,7 @@ export default function Home() {
                 </section>
 
 
-                <section id="team" className="py-16 bg-gray-50">
+                {/* <section id="team" className="py-16 bg-gray-50">
                     <div className="max-w-7xl mx-auto px-4">
 
                         <div className="text-center mb-12">
@@ -268,7 +268,7 @@ export default function Home() {
                             ))}
                         </div>
                     </div>
-                </section>
+                </section> */}
 
 
 

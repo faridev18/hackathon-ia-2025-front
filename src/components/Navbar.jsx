@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import logo from "../assets/logo-andf.png";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,22 +9,23 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
         
         {/* Logo */}
-        <h1 className="text-2xl font-bold text-green-600">Foncier Intelligent</h1>
+        {/* <h1 className="text-2xl font-bold text-green-600">Foncier Intelligent</h1> */}
+        <img className="h-12" src={logo} alt="" />
 
         {/* Menu Desktop */}
         <ul className="hidden md:flex gap-6 text-gray-700 font-medium">
           <li><a href="/#features" className="hover:text-green-600">Fonctionnalités</a></li>
           <li><a href="/#story" className="hover:text-green-600">Scénario</a></li>
-          <li><a href="/#team" className="hover:text-green-600">Équipe</a></li>
+          {/* <li><a href="/#team" className="hover:text-green-600">Équipe</a></li> */}
           <li><a href="/#contact" className="hover:text-green-600">Contact</a></li>
           <li><a href="/chat" className="hover:text-green-600">Chatbot IA</a></li>
         </ul>
 
         {/* Bouton Demo Desktop */}
         <div className="hidden md:block">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-            Démo
-          </button>
+          <a href="/start" className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+            Démarrer
+          </a>
         </div>
 
         {/* Hamburger Mobile */}
@@ -65,11 +67,11 @@ export default function Navbar() {
         <ul className="flex flex-col items-center gap-4 py-6 text-gray-700 font-medium">
           <li><a href="#features" className="hover:text-green-600">Fonctionnalités</a></li>
           <li><a href="#story" className="hover:text-green-600">Scénario</a></li>
-          <li><a href="#team" className="hover:text-green-600">Équipe</a></li>
+          {/* <li><a href="#team" className="hover:text-green-600">Équipe</a></li> */}
           <li><a href="#contact" className="hover:text-green-600">Contact</a></li>
           <li>
             <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
-               Démo
+               Démarrer
             </button>
           </li>
         </ul>

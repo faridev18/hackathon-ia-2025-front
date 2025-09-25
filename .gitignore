@@ -18,6 +18,13 @@ public/tf_en_cours.geojson
 public/tf_etat.geojson
 public/tf_demembres.geojson
 public/titre_reconstitue.geojson
+public/enregistrement_individuel.geojson
+public/dpm.geojson
+public/dpl.geojson
+public/zone_inondable.geojson
+public/restriction.geojson
+public/air_proteges.geojson
+public/aif.geojson
 
 
 # Editor directories and files
