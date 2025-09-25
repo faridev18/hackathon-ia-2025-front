@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+public/parcelles.geojson
+public/litige.geojson
+public/tf_en_cours.geojson
+public/tf_etat.geojson
+public/tf_demembres.geojson
+public/titre_reconstitue.geojson
+
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
