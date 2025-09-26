@@ -17,6 +17,13 @@ export default function Start() {
         if (selectedFile) {
             setFile(selectedFile);
             setPreview(URL.createObjectURL(selectedFile));
+
+            // Convertir en Base64 et stocker dans localStorage
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                localStorage.setItem("uploadedImage", reader.result);
+            };
+            reader.readAsDataURL(selectedFile);
         }
     };
 
@@ -28,8 +35,16 @@ export default function Start() {
         if (droppedFile) {
             setFile(droppedFile);
             setPreview(URL.createObjectURL(droppedFile));
+
+            // Convertir en Base64 et stocker dans localStorage
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                localStorage.setItem("uploadedImage", reader.result);
+            };
+            reader.readAsDataURL(droppedFile);
         }
     };
+
 
     const handleDragOver = (e) => {
         e.preventDefault();

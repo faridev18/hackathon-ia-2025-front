@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Polygon, Popup, Marker, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useLocation, useNavigate } from "react-router";
-
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Fix for default markers in React-Leaflet
 import L from 'leaflet';
@@ -74,6 +75,9 @@ const ParcelleMap = () => {
     const [showDpl, setShowDpl] = useState(false);
     const [showAirProteges, setShowAirProteges] = useState(false);
     const [showAif, setShowAif] = useState(false);
+
+    const storedImage = localStorage.getItem("uploadedImage");
+
 
 
     const mapRef = useRef();
@@ -744,6 +748,110 @@ const ParcelleMap = () => {
     const polygonCoords = coordonnees.map(coord => [coord.latitude, coord.longitude]);
     // const convertedLitigeData = litigeData ? convertGeoJSONCoordinates(litigeData) : null;
 
+    const exportPDF = () => {
+        if (!parcelleData) return;
+
+        const pdf = new jsPDF("p", "mm", "a4");
+
+        // === En-tête ===
+        pdf.setFontSize(18);
+        pdf.text("Rapport de Parcelle", 105, 20, { align: "center" });
+
+        pdf.setFontSize(12);
+        pdf.setTextColor(100);
+        pdf.text(`Généré le : ${new Date().toLocaleDateString()}`, 105, 28, { align: "center" });
+
+        let startY = 50;
+
+        // === Image du levé ===
+        if (storedImage) {
+            const img = new Image();
+            img.src = storedImage;
+
+            img.onload = () => {
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const maxWidth = pageWidth - 60; // marge de 30 à gauche et droite
+                const maxHeight = 90; // limite la hauteur de l’image
+
+                let renderWidth = img.width;
+                let renderHeight = img.height;
+
+                // Redimensionnement proportionnel
+                if (renderWidth > maxWidth) {
+                    const ratio = maxWidth / renderWidth;
+                    renderWidth = maxWidth;
+                    renderHeight *= ratio;
+                }
+                if (renderHeight > maxHeight) {
+                    const ratio = maxHeight / renderHeight;
+                    renderHeight = maxHeight;
+                    renderWidth *= ratio;
+                }
+
+                // Position centrée
+                const x = (pageWidth - renderWidth) / 2;
+                const y = 40;
+
+                pdf.addImage(img, "PNG", x, y, renderWidth, renderHeight);
+
+                startY = y + renderHeight + 10; // décale le tableau sous l’image
+
+                // === Après chargement de l'image : continuer génération ===
+                addTextualData(pdf, startY);
+            };
+        } else {
+            // Pas d'image → afficher direct les données
+            addTextualData(pdf, startY);
+        }
+
+        // Fonction pour générer le tableau de données
+        const addTextualData = (pdf, startY) => {
+            pdf.setFontSize(14);
+            pdf.setTextColor(0);
+            pdf.text("Statut de la parcelle", 14, startY);
+
+            startY += 10;
+
+            const labels = {
+                'enregistrement_individuel': 'Enregistrement Individuel',
+                'litige': 'Litige en cours',
+                'parcelles': 'Parcelles identifiées',
+                'restriction': 'Restrictions applicables',
+                'air_proteges': 'Aire protégée',
+                'zone_inondable': 'Zone inondable',
+                'dpm': 'Domaine Public Maritime',
+                'dpl': 'Domaine Public Fluvial',
+                'tf_etat': 'Titre Foncier État',
+                'tf_en_cours': "TF en cours d'instruction",
+                'tf_demembres': 'TF démembrés',
+                'titre_reconstitue': 'Titre reconstitué',
+                'aif': "Acte d'Identification Foncière"
+            };
+
+            Object.entries(parcelleData.textualData).forEach(([key, value], index) => {
+                const label = labels[key] || key.replace(/_/g, " ").toUpperCase();
+                const displayValue = value === "OUI" ? "Oui" : value === "NON" ? "Non" : value;
+
+                pdf.setFontSize(11);
+                pdf.setTextColor(50);
+                pdf.text(label, 14, startY + index * 8);
+
+                pdf.setTextColor(value === "OUI" ? "green" : value === "NON" ? "red" : "blue");
+                pdf.text(displayValue, 170, startY + index * 8, { align: "right" });
+            });
+
+            // === Pied de page ===
+            pdf.setFontSize(10);
+            pdf.setTextColor(150);
+            pdf.text("Rapport généré par l'ANDP", 105, 290, { align: "center" });
+
+            // Sauvegarde du PDF
+            pdf.save("rapport-parcelle.pdf");
+        };
+    };
+
+
+
     return (
         <div className="h-screen w-screen flex flex-col relative">
             {/* <Navbar /> */}
@@ -1010,15 +1118,31 @@ const ParcelleMap = () => {
                                     ✕
                                 </button>
                             </div>
+                            <button
+                                onClick={exportPDF}
+                                className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                            >
+                                Exporter PDF
+                            </button>
 
                             {parcelleData && parcelleData.textualData && (
-                                <div className="space-y-4">
+                                <div className="space-y-4" id="rapport-parcelle" >
 
 
                                     {/* Données textuelles */}
                                     <div>
                                         <h4 className="font-semibold mb-3">📊 Statut de la parcelle</h4>
                                         <div className="space-y-2">
+                                            {storedImage ? (
+                                                <img
+                                                    src={storedImage}
+                                                    alt="Image levé"
+                                                    className="max-w-md w-full rounded shadow-md mb-6"
+                                                />
+                                            ) : (
+                                                <p className="text-gray-500">Aucune image chargée</p>
+                                            )}
+
                                             {Object.entries(parcelleData.textualData).map(([key, value]) => {
                                                 // Mapping des clés techniques vers des libellés compréhensibles
                                                 const labels = {
