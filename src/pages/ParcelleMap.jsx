@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, Polygon, Popup, Marker, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Popup, Marker, GeoJSON, LayersControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useLocation, useNavigate } from "react-router";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import autoTable from "jspdf-autotable";
 
 // Fix for default markers in React-Leaflet
 import L from 'leaflet';
@@ -11,7 +11,7 @@ import Navbar from '../components/Navbar';
 
 // Import de la bibliothèque de conversion UTM
 import { toLatLon } from 'utm';
-import { Layers } from 'lucide-react';
+import { ArrowBigLeftDash, ArrowLeft, Download, Layers, MoveLeft } from 'lucide-react';
 
 let DefaultIcon = L.divIcon({
     html: `<div class="w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>`,
@@ -45,6 +45,9 @@ const ParcelleMap = () => {
     console.log('====================================');
 
     const [isLoading, setIsLoading] = useState(true); // État de chargement
+
+    const { BaseLayer } = LayersControl;
+
 
 
 
@@ -748,6 +751,8 @@ const ParcelleMap = () => {
     const polygonCoords = coordonnees.map(coord => [coord.latitude, coord.longitude]);
     // const convertedLitigeData = litigeData ? convertGeoJSONCoordinates(litigeData) : null;
 
+
+
     const exportPDF = () => {
         if (!parcelleData) return;
 
@@ -764,53 +769,12 @@ const ParcelleMap = () => {
         let startY = 50;
 
         // === Image du levé ===
-        if (storedImage) {
-            const img = new Image();
-            img.src = storedImage;
-
-            img.onload = () => {
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const maxWidth = pageWidth - 60; // marge de 30 à gauche et droite
-                const maxHeight = 90; // limite la hauteur de l’image
-
-                let renderWidth = img.width;
-                let renderHeight = img.height;
-
-                // Redimensionnement proportionnel
-                if (renderWidth > maxWidth) {
-                    const ratio = maxWidth / renderWidth;
-                    renderWidth = maxWidth;
-                    renderHeight *= ratio;
-                }
-                if (renderHeight > maxHeight) {
-                    const ratio = maxHeight / renderHeight;
-                    renderHeight = maxHeight;
-                    renderWidth *= ratio;
-                }
-
-                // Position centrée
-                const x = (pageWidth - renderWidth) / 2;
-                const y = 40;
-
-                pdf.addImage(img, "PNG", x, y, renderWidth, renderHeight);
-
-                startY = y + renderHeight + 10; // décale le tableau sous l’image
-
-                // === Après chargement de l'image : continuer génération ===
-                addTextualData(pdf, startY);
-            };
-        } else {
-            // Pas d'image → afficher direct les données
-            addTextualData(pdf, startY);
-        }
-
-        // Fonction pour générer le tableau de données
-        const addTextualData = (pdf, startY) => {
+        const drawTable = (startY) => {
             pdf.setFontSize(14);
             pdf.setTextColor(0);
             pdf.text("Statut de la parcelle", 14, startY);
 
-            startY += 10;
+            startY += 5;
 
             const labels = {
                 'enregistrement_individuel': 'Enregistrement Individuel',
@@ -828,26 +792,74 @@ const ParcelleMap = () => {
                 'aif': "Acte d'Identification Foncière"
             };
 
-            Object.entries(parcelleData.textualData).forEach(([key, value], index) => {
+            // Préparation des données pour le tableau
+            const rows = Object.entries(parcelleData.textualData).map(([key, value]) => {
                 const label = labels[key] || key.replace(/_/g, " ").toUpperCase();
                 const displayValue = value === "OUI" ? "Oui" : value === "NON" ? "Non" : value;
+                return [label, displayValue];
+            });
 
-                pdf.setFontSize(11);
-                pdf.setTextColor(50);
-                pdf.text(label, 14, startY + index * 8);
-
-                pdf.setTextColor(value === "OUI" ? "green" : value === "NON" ? "red" : "blue");
-                pdf.text(displayValue, 170, startY + index * 8, { align: "right" });
+            autoTable(pdf, {
+                startY: startY + 5,
+                head: [["Critère", "Valeur"]],
+                body: rows,
+                theme: "striped",
+                styles: { fontSize: 11 },
+                headStyles: { fillColor: [0, 128, 0], textColor: 255 }, // vert
+                alternateRowStyles: { fillColor: [240, 240, 240] }, // gris clair pour les lignes impaires
+                bodyStyles: {
+                    textColor: (data) => {
+                        const val = data.row.raw[1];
+                        if (val === "Oui") return [0, 128, 0];   // vert
+                        if (val === "Non") return [200, 0, 0];   // rouge
+                        return [0, 0, 200];                      // bleu
+                    }
+                }
             });
 
             // === Pied de page ===
             pdf.setFontSize(10);
             pdf.setTextColor(150);
-            pdf.text("Rapport généré par l'ANDP", 105, 290, { align: "center" });
+            pdf.text("Rapport généré par l'ANDF", 105, 290, { align: "center" });
 
-            // Sauvegarde du PDF
             pdf.save("rapport-parcelle.pdf");
         };
+
+        if (storedImage) {
+            const img = new Image();
+            img.src = storedImage;
+
+            img.onload = () => {
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const maxWidth = pageWidth - 60;
+                const maxHeight = 90;
+
+                let renderWidth = img.width;
+                let renderHeight = img.height;
+
+                // Redimension proportionnel
+                if (renderWidth > maxWidth) {
+                    const ratio = maxWidth / renderWidth;
+                    renderWidth = maxWidth;
+                    renderHeight *= ratio;
+                }
+                if (renderHeight > maxHeight) {
+                    const ratio = maxHeight / renderHeight;
+                    renderHeight = maxHeight;
+                    renderWidth *= ratio;
+                }
+
+                const x = (pageWidth - renderWidth) / 2;
+                const y = 40;
+
+                pdf.addImage(img, "PNG", x, y, renderWidth, renderHeight);
+
+                startY = y + renderHeight + 10;
+                drawTable(startY);
+            };
+        } else {
+            drawTable(startY);
+        }
     };
 
 
@@ -861,11 +873,13 @@ const ParcelleMap = () => {
                 <div className="flex items-center gap-3 flex-wrap">
                     <button
                         onClick={() => {
+                            localStorage.removeItem("uploadedImage");
                             navigate("/start", { state: {}, replace: true });
                         }}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                        className="px-4 flex gap-2 cursor-pointer items-center py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                     >
-                        ← Retour
+                        <ArrowBigLeftDash />
+                        <span>Retour</span>
                     </button>
                     {parcelleData && (
                         <div className="flex items-center gap-2">
@@ -878,7 +892,7 @@ const ParcelleMap = () => {
                             {/* Bouton pour ouvrir le modal d'informations */}
                             <button
                                 onClick={() => setIsInfoModalOpen(true)}
-                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1 text-sm"
+                                className="px-3 py-1 cursor-pointer bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1 text-sm"
                             >
                                 <InfoIcon />
                                 Détails
@@ -898,7 +912,7 @@ const ParcelleMap = () => {
 
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
+                        className="px-4 py-2 cursor-pointer bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
                     >
                         <Layers />
                         {isSidebarOpen ? 'Masquer les couches' : 'Afficher les couches'}
@@ -924,6 +938,63 @@ const ParcelleMap = () => {
                             mapRef.current = mapInstance;
                         }}
                     >
+                        <LayersControl position="topright">
+                            {/* OpenStreetMap classique */}
+                            <BaseLayer checked name="Plan">
+                                <TileLayer
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    attribution="&copy; OpenStreetMap contributors"
+                                />
+                            </BaseLayer>
+
+                            {/* Satellite ESRI */}
+                            <BaseLayer name="Satellite ESRI">
+                                <TileLayer
+                                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                                    attribution="Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics"
+                                />
+                            </BaseLayer>
+
+                            {/* Topographique OpenTopoMap */}
+                            <BaseLayer name="Topographique">
+                                <TileLayer
+                                    url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+                                    attribution="&copy; OpenTopoMap (CC-BY-SA)"
+                                />
+                            </BaseLayer>
+
+                            {/* Carto Clair */}
+                            <BaseLayer name="Carto Clair">
+                                <TileLayer
+                                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                                    attribution="&copy; CARTO"
+                                />
+                            </BaseLayer>
+
+                            {/* Carto Dark */}
+                            <BaseLayer name="Carto Dark">
+                                <TileLayer
+                                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                                    attribution="&copy; CARTO"
+                                />
+                            </BaseLayer>
+
+                            {/* Stamen Terrain */}
+                            <BaseLayer name="Stamen Terrain">
+                                <TileLayer
+                                    url="https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg"
+                                    attribution="Map tiles by Stamen Design"
+                                />
+                            </BaseLayer>
+
+                            {/* Stamen Toner */}
+                            <BaseLayer name="Stamen Toner">
+                                <TileLayer
+                                    url="https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png"
+                                    attribution="Map tiles by Stamen Design"
+                                />
+                            </BaseLayer>
+                        </LayersControl>
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -1090,7 +1161,7 @@ const ParcelleMap = () => {
                                         </div>
                                         <button
                                             onClick={() => deleteCoord(index)}
-                                            className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm w-full"
+                                            className="mt-2 px-3 py-1 cursor-pointer bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm w-full"
                                         >
                                             Supprimer
                                         </button>
@@ -1113,16 +1184,17 @@ const ParcelleMap = () => {
                                 <h3 className="text-xl font-semibold">📋 Informations de la parcelle</h3>
                                 <button
                                     onClick={() => setIsInfoModalOpen(false)}
-                                    className="p-1 hover:bg-gray-100 rounded"
+                                    className="p-1 cursor-pointer hover:bg-gray-100 rounded"
                                 >
                                     ✕
                                 </button>
                             </div>
                             <button
                                 onClick={exportPDF}
-                                className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                                className="flex cursor-pointer gap-2 items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
                             >
-                                Exporter PDF
+                                <Download size={16} />
+                                <span>Exporter le rapport</span>
                             </button>
 
                             {parcelleData && parcelleData.textualData && (
@@ -1131,7 +1203,7 @@ const ParcelleMap = () => {
 
                                     {/* Données textuelles */}
                                     <div>
-                                        <h4 className="font-semibold mb-3">📊 Statut de la parcelle</h4>
+                                        <h4 className="font-semibold my-3"> Parcelle</h4>
                                         <div className="space-y-2">
                                             {storedImage ? (
                                                 <img
@@ -1142,6 +1214,8 @@ const ParcelleMap = () => {
                                             ) : (
                                                 <p className="text-gray-500">Aucune image chargée</p>
                                             )}
+                                            <h4 className="font-semibold mb-3">Statut de la parcelle</h4>
+
 
                                             {Object.entries(parcelleData.textualData).map(([key, value]) => {
                                                 // Mapping des clés techniques vers des libellés compréhensibles
@@ -1174,9 +1248,9 @@ const ParcelleMap = () => {
                                                 };
 
                                                 return (
-                                                    <div key={key} className="flex justify-between items-center p-3 bg-white border rounded-lg shadow-sm">
+                                                    <div key={key} className="flex justify-between items-center p-1 bg-white border rounded-lg shadow-xm">
                                                         <div className="flex items-center gap-3">
-                                                            <span className="text-lg">{getIcon(value)}</span>
+                                                            {/* <span className="text-lg">{getIcon(value)}</span> */}
                                                             <div>
                                                                 <span className="text-sm font-medium text-gray-700 block">
                                                                     {labels[key] || key.replace(/_/g, ' ').toUpperCase()}
@@ -1199,10 +1273,17 @@ const ParcelleMap = () => {
 
                                     {/* Actions */}
                                     <div className="flex gap-2 pt-4 border-t">
+                                        <button
+                                            onClick={exportPDF}
+                                            className="flex gap-2 cursor-pointer items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                                        >
+                                            <Download size={16} />
+                                            <span>Exporter le rapport</span>
+                                        </button>
 
                                         <button
                                             onClick={() => setIsInfoModalOpen(false)}
-                                            className="flex-1 px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                                            className="flex-1 cursor-pointer px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
                                         >
                                             Fermer
                                         </button>
@@ -1232,7 +1313,7 @@ const ParcelleMap = () => {
                         <h3 className="text-lg font-semibold">📋 Couches cartographiques</h3>
                         <button
                             onClick={() => setIsSidebarOpen(false)}
-                            className="p-1 hover:bg-gray-100 rounded"
+                            className="p-1 cursor-pointer hover:bg-gray-100 rounded"
                         >
                             ✕
                         </button>
@@ -1370,7 +1451,7 @@ const ParcelleMap = () => {
                                     setShowAirProteges(true);
                                     setShowAif(true);
                                 }}
-                                className="flex-1 px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm"
+                                className="flex-1 cursor-pointer px-3 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors text-sm"
                             >
                                 ✅ Tout afficher
                             </button>
@@ -1389,7 +1470,7 @@ const ParcelleMap = () => {
                                     setShowAirProteges(false);
                                     setShowAif(false);
                                 }}
-                                className="flex-1 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
+                                className="flex-1 cursor-pointer px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-sm"
                             >
                                 ❌ Tout masquer
                             </button>
