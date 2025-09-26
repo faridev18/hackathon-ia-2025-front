@@ -4,6 +4,8 @@ import 'leaflet/dist/leaflet.css';
 import { useLocation, useNavigate } from "react-router";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import logo from "../assets/logo-andf.png";
+
 
 // Fix for default markers in React-Leaflet
 import L from 'leaflet';
@@ -413,8 +415,8 @@ const ParcelleMap = () => {
                                 <p><strong>NUP:</strong> ${feature.properties.nup || 'N/A'}</p>
                                 <p><strong>Ville:</strong> ${feature.properties.ville || 'Non spécifiée'}</p>
                                 <p><strong>BCDF:</strong> ${feature.properties.bcdf || 'Non spécifié'}</p>
-                                <p><strong>TF:</strong> ${feature.properties.num_tf || 'N/A'}</p>
-                                <p><strong>TF Aléa:</strong> ${feature.properties.tf_alea || 'N/A'}</p>
+                                <p><strong>Titre Foncier:</strong> ${feature.properties.num_tf || 'N/A'}</p>
+                                <p><strong>Titre Foncier Aléa:</strong> ${feature.properties.tf_alea || 'N/A'}</p>
                             </div>
                         </div>
                     `;
@@ -423,11 +425,11 @@ const ParcelleMap = () => {
                 case 'tfEtat':
                     popupContent = `
                         <div class="p-2 max-w-sm">
-                            <h4 class="font-bold text-lg mb-2">🏛️ TF État #${feature.properties.id || 'N/A'}</h4>
+                            <h4 class="font-bold text-lg mb-2">🏛️ Titre Foncier État #${feature.properties.id || 'N/A'}</h4>
                             <div class="space-y-1 text-sm">
-                                <p><strong>Numéro TF:</strong> ${feature.properties.num_tf || 'N/A'}</p>
+                                <p><strong>Numéro Titre Foncier:</strong> ${feature.properties.num_tf || 'N/A'}</p>
                                 <p><strong>Surface:</strong> ${feature.properties.surface ? `${feature.properties.surface.toLocaleString()} m²` : 'N/A'}</p>
-                                <p><strong>TF Aléa:</strong> ${feature.properties.tf_alea || 'N/A'}</p>
+                                <p><strong>Titre Foncier Aléa:</strong> ${feature.properties.tf_alea || 'N/A'}</p>
                             </div>
                         </div>
                     `;
@@ -436,7 +438,7 @@ const ParcelleMap = () => {
                 case 'tfEnCours':
                     popupContent = `
                         <div class="p-2 max-w-sm">
-                            <h4 class="font-bold text-lg mb-2">⏳ TF en Cours #${feature.properties.id || 'N/A'}</h4>
+                            <h4 class="font-bold text-lg mb-2">⏳ Titre Foncier en Cours #${feature.properties.id || 'N/A'}</h4>
                             <div class="space-y-1 text-sm">
                                 <p><strong>Commune:</strong> ${feature.properties.commune || 'Non spécifiée'}</p>
                                 <p><strong>Arrondissement:</strong> ${feature.properties.arrond || 'Non spécifié'}</p>
@@ -453,11 +455,11 @@ const ParcelleMap = () => {
                 case 'tfDemembres':
                     popupContent = `
                         <div class="p-2 max-w-sm">
-                            <h4 class="font-bold text-lg mb-2">🏠 TF Démembrés #${feature.properties.id || 'N/A'}</h4>
+                            <h4 class="font-bold text-lg mb-2">🏠 Titre Foncier Démembrés #${feature.properties.id || 'N/A'}</h4>
                             <div class="space-y-1 text-sm">
-                                <p><strong>Numéro TF:</strong> ${feature.properties.num_tf || 'N/A'}</p>
+                                <p><strong>Numéro Titre Foncier:</strong> ${feature.properties.num_tf || 'N/A'}</p>
                                 <p><strong>Commune:</strong> ${feature.properties.Commune || 'Non spécifiée'}</p>
-                                <p><strong>TF Aléa:</strong> ${feature.properties.tf_alea || 'N/A'}</p>
+                                <p><strong>Titre Foncier Aléa:</strong> ${feature.properties.tf_alea || 'N/A'}</p>
                             </div>
                         </div>
                     `;
@@ -550,8 +552,8 @@ const ParcelleMap = () => {
                             <p><strong>Département:</strong> ${feature.properties.departement || 'N/A'}</p>
                             <p><strong>Commune:</strong> ${feature.properties.commune || 'N/A'}</p>
                             <p><strong>Arrondissement:</strong> ${feature.properties.arrondissement || 'N/A'}</p>
-                            <p><strong>Numéro TF:</strong> ${feature.properties.num_tf || 'N/A'}</p>
-                            <p><strong>TF Aléa:</strong> ${feature.properties.TF_alea || 'N/A'}</p>
+                            <p><strong>Numéro Titre Foncier:</strong> ${feature.properties.num_tf || 'N/A'}</p>
+                            <p><strong>Titre Foncier Aléa:</strong> ${feature.properties.TF_alea || 'N/A'}</p>
                         </div>
                     </div>
                 `;
@@ -758,13 +760,49 @@ const ParcelleMap = () => {
 
         const pdf = new jsPDF("p", "mm", "a4");
 
-        // === En-tête ===
-        pdf.setFontSize(18);
-        pdf.text("Rapport de Parcelle", 105, 20, { align: "center" });
+        // === Chargement et ajout du logo ===
+        const addLogo = () => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = logo;
 
-        pdf.setFontSize(12);
-        pdf.setTextColor(100);
-        pdf.text(`Généré le : ${new Date().toLocaleDateString()}`, 105, 28, { align: "center" });
+                img.onload = () => {
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const logoWidth = 40; // Largeur fixe pour le logo
+                    const logoHeight = (img.height * logoWidth) / img.width; // Hauteur proportionnelle
+
+                    // Position en haut à gauche
+                    pdf.addImage(img, "PNG", 14, 10, logoWidth, logoHeight);
+                    resolve(logoHeight);
+                };
+
+                img.onerror = () => {
+                    console.warn("Logo non chargé");
+                    resolve(0);
+                };
+            });
+        };
+
+        // === En-tête ===
+        const addHeader = async (logoHeight) => {
+            const pageWidth = pdf.internal.pageSize.getWidth();
+
+            // Titre principal aligné à droite du logo
+            pdf.setFontSize(18);
+            pdf.setTextColor(0);
+            pdf.text("Rapport de Parcelle", pageWidth / 2, 20, { align: "center" });
+
+            // Sous-titre
+            pdf.setFontSize(12);
+            pdf.setTextColor(100);
+            pdf.text(`Généré le : ${new Date().toLocaleDateString()}`, pageWidth / 2, 28, { align: "center" });
+
+            // Ligne séparatrice
+            pdf.setDrawColor(200);
+            pdf.line(14, 35, pageWidth - 14, 35);
+
+            return Math.max(40, 15 + logoHeight + 10); // Retourne la position Y de départ
+        };
 
         let startY = 50;
 
@@ -784,12 +822,12 @@ const ParcelleMap = () => {
                 'air_proteges': 'Aire protégée',
                 'zone_inondable': 'Zone inondable',
                 'dpm': 'Domaine Public Maritime',
-                'dpl': 'Domaine Public Fluvial',
+                'dpl': 'Domaine Public Lagunaire',
                 'tf_etat': 'Titre Foncier État',
-                'tf_en_cours': "TF en cours d'instruction",
-                'tf_demembres': 'TF démembrés',
+                'tf_en_cours': "Titre Foncier en cours d'instruction",
+                'tf_demembres': 'Titre Foncier démembrés',
                 'titre_reconstitue': 'Titre reconstitué',
-                'aif': "Acte d'Identification Foncière"
+                'aif': "Association d'Intérêts Foncier"
             };
 
             // Préparation des données pour le tableau
@@ -805,8 +843,8 @@ const ParcelleMap = () => {
                 body: rows,
                 theme: "striped",
                 styles: { fontSize: 11 },
-                headStyles: { fillColor: [0, 128, 0], textColor: 255 }, // vert
-                alternateRowStyles: { fillColor: [240, 240, 240] }, // gris clair pour les lignes impaires
+                headStyles: { fillColor: [0, 128, 0], textColor: 255 },
+                alternateRowStyles: { fillColor: [240, 240, 240] },
                 bodyStyles: {
                     textColor: (data) => {
                         const val = data.row.raw[1];
@@ -817,49 +855,87 @@ const ParcelleMap = () => {
                 }
             });
 
-            // === Pied de page ===
-            pdf.setFontSize(10);
-            pdf.setTextColor(150);
-            pdf.text("Rapport généré par l'ANDF", 105, 290, { align: "center" });
+            // === Pied de page avec logo ===
+            const addFooter = () => {
+                const pageHeight = pdf.internal.pageSize.getHeight();
 
-            pdf.save("rapport-parcelle.pdf");
+                // Ligne séparatrice
+                pdf.setDrawColor(200);
+                pdf.line(14, pageHeight - 20, pdf.internal.pageSize.getWidth() - 14, pageHeight - 20);
+
+                // Texte du pied de page
+                pdf.setFontSize(10);
+                pdf.setTextColor(150);
+                pdf.text("Rapport généré par l'ANDF", pdf.internal.pageSize.getWidth() / 2, pageHeight - 10, { align: "center" });
+
+                // Logo en bas à droite
+                const img = new Image();
+                img.src = logo;
+                img.onload = () => {
+                    const logoWidth = 15;
+                    const logoHeight = (img.height * logoWidth) / img.width;
+                    pdf.addImage(img, "PNG", pdf.internal.pageSize.getWidth() - 30, pageHeight - 18, logoWidth, logoHeight);
+                };
+            };
+
+            addFooter();
         };
 
-        if (storedImage) {
-            const img = new Image();
-            img.src = storedImage;
+        // === Processus principal ===
+        const generatePDF = async () => {
+            try {
+                // Ajouter le logo
+                const logoHeight = await addLogo();
 
-            img.onload = () => {
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const maxWidth = pageWidth - 60;
-                const maxHeight = 90;
+                // Ajouter l'en-tête
+                startY = await addHeader(logoHeight);
 
-                let renderWidth = img.width;
-                let renderHeight = img.height;
+                // Gérer l'image stockée si elle existe
+                if (storedImage) {
+                    const img = new Image();
+                    img.src = storedImage;
 
-                // Redimension proportionnel
-                if (renderWidth > maxWidth) {
-                    const ratio = maxWidth / renderWidth;
-                    renderWidth = maxWidth;
-                    renderHeight *= ratio;
+                    img.onload = () => {
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const maxWidth = pageWidth - 60;
+                        const maxHeight = 90;
+
+                        let renderWidth = img.width;
+                        let renderHeight = img.height;
+
+                        // Redimension proportionnelle
+                        if (renderWidth > maxWidth) {
+                            const ratio = maxWidth / renderWidth;
+                            renderWidth = maxWidth;
+                            renderHeight *= ratio;
+                        }
+                        if (renderHeight > maxHeight) {
+                            const ratio = maxHeight / renderHeight;
+                            renderHeight = maxHeight;
+                            renderWidth *= ratio;
+                        }
+
+                        const x = (pageWidth - renderWidth) / 2;
+                        const y = startY;
+
+                        pdf.addImage(img, "PNG", x, y, renderWidth, renderHeight);
+
+                        startY = y + renderHeight + 15;
+                        drawTable(startY);
+
+                        // Sauvegarder le PDF
+                        pdf.save("rapport-parcelle.pdf");
+                    };
+                } else {
+                    drawTable(startY);
+                    pdf.save("rapport-parcelle.pdf");
                 }
-                if (renderHeight > maxHeight) {
-                    const ratio = maxHeight / renderHeight;
-                    renderHeight = maxHeight;
-                    renderWidth *= ratio;
-                }
+            } catch (error) {
+                console.error("Erreur lors de la génération du PDF:", error);
+            }
+        };
 
-                const x = (pageWidth - renderWidth) / 2;
-                const y = 40;
-
-                pdf.addImage(img, "PNG", x, y, renderWidth, renderHeight);
-
-                startY = y + renderHeight + 10;
-                drawTable(startY);
-            };
-        } else {
-            drawTable(startY);
-        }
+        generatePDF();
     };
 
 
@@ -1229,10 +1305,10 @@ const ParcelleMap = () => {
                                                     'dpm': 'Domaine Public Maritime',
                                                     'dpl': 'Domaine Public Fluvial',
                                                     'tf_etat': 'Titre Foncier État',
-                                                    'tf_en_cours': 'TF en cours d\'instruction',
-                                                    'tf_demembres': 'TF démembrés',
+                                                    'tf_en_cours': 'Titre Foncier en cours d\'instruction',
+                                                    'tf_demembres': 'Titre Foncier démembrés',
                                                     'titre_reconstitue': 'Titre reconstitué',
-                                                    'aif': 'Acte d\'Identification Foncière'
+                                                    'aif': 'Association d’Intérêts Foncier'
                                                 };
 
                                                 const getIcon = (value) => {
@@ -1342,7 +1418,7 @@ const ParcelleMap = () => {
                                 )}
                                 {tfEtatData && (
                                     <LayerCheckbox
-                                        label="TF État"
+                                        label="Titre Foncier État"
                                         checked={showTfEtat}
                                         onChange={setShowTfEtat}
                                         color="blue"
@@ -1350,7 +1426,7 @@ const ParcelleMap = () => {
                                 )}
                                 {tfEnCoursData && (
                                     <LayerCheckbox
-                                        label="TF en Cours"
+                                        label="Titre Foncier en Cours"
                                         checked={showTfEnCours}
                                         onChange={setShowTfEnCours}
                                         color="yellow"
@@ -1358,7 +1434,7 @@ const ParcelleMap = () => {
                                 )}
                                 {tfDemembresData && (
                                     <LayerCheckbox
-                                        label="TF Démembrés"
+                                        label="Titre Foncier Démembrés"
                                         checked={showTfDemembres}
                                         onChange={setShowTfDemembres}
                                         color="purple"
@@ -1482,9 +1558,9 @@ const ParcelleMap = () => {
                             <div className="flex flex-wrap gap-4 justify-center">
                                 <LegendItem color="orange" label="Litiges" />
                                 <LegendItem color="green" label="Titres Reconstitués" />
-                                <LegendItem color="blue" label="TF État" />
-                                <LegendItem color="yellow" label="TF en Cours" />
-                                <LegendItem color="purple" label="TF Démembrés" />
+                                <LegendItem color="blue" label="Titre Foncier État" />
+                                <LegendItem color="yellow" label="Titre Foncier en Cours" />
+                                <LegendItem color="purple" label="Titre Foncier Démembrés" />
                                 <LegendItem color="cyan" label="Zones Inondables" />
                                 <LegendItem color="red" label="Restrictions" />
                                 <LegendItem color="lightGreen" label="Enregistrements" />

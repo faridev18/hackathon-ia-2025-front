@@ -8,7 +8,7 @@ import Navbar from "../components/Navbar";
 
 const WEBHOOK_URL = "https://faridev.app.n8n.cloud/webhook/e9fa68c0-aecb-4ddc-aa22-889b3c268ac7";
 
-export function ChatInterface() {
+export function Chat() {
   const [messages, setMessages] = useState([
     {
       id: "welcome",
@@ -90,13 +90,9 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-bg">
+    <div className="flex flex-col h-full bg-gradient-bg">
       {/* Header */}
-      <Navbar />
-      <div className="bg-card/80 backdrop-blur-sm border-b border-border p-4 shadow-sm">
-        <h1 className="text-xl font-semibold text-foreground text-blue-900">Assistant IA</h1>
-        <p className="text-sm text-muted-foreground text-green-700/80">Posez-moi vos questions, je suis là pour vous aider</p>
-      </div>
+     
       
 
       {/* Messages Container */}

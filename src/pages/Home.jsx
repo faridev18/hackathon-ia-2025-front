@@ -1,56 +1,61 @@
-import React from 'react'
+import React, { useState } from 'react'
 
 import hero from "../assets/hero1.png"
 import Navbar from '../components/Navbar'
 import Fieldcard from '../components/Fieldcard'
-import { FaSearch, FaFileAlt, FaComments, FaMapMarkedAlt } from "react-icons/fa";
+import { FaSearch, FaFileAlt, FaComments, FaMapMarkedAlt, FaCommentDots } from "react-icons/fa";
 import { StorySection } from '../components/StorySection';
 import { Tilt } from 'react-tilt';
 import Marquee from "react-fast-marquee";
-
+import { ChatInterface } from './ChatInterface';
+import { Chat } from '../components/Chat';
+import Bot from '../components/Bot';
 
 
 const features = [
     {
         id: 1,
         icon: <FaSearch className="text-white text-4xl" />,
-        title: "Détection des conflits",
-        description: "Analyse automatique des zones à risques avec l’IA.",
+        title: "Identification des conflits",
+        description: "Détection automatique des superpositions de titres et zones à risques grâce à l’IA.",
     },
     {
         id: 2,
         icon: <FaFileAlt className="text-white text-4xl" />,
-        title: "Vérification des documents",
-        description: "Authentification fiable et sécurisée des titres fonciers.",
+        title: "Authentification des titres",
+        description: "Vérification sécurisée des documents et détection d’anomalies.",
     },
     {
         id: 3,
         icon: <FaComments className="text-white text-4xl" />,
-        title: "Chatbot intelligent",
-        description: "Disponible en texte, audio et langues locales.",
+        title: "Assistant IA",
+        description: "Chatbot intelligent disponible en texte, audio et langues locales.",
     },
     {
         id: 4,
         icon: <FaMapMarkedAlt className="text-white text-4xl" />,
-        title: "Cartographie IA",
-        description: "Création de cartes à partir d’images ou vidéos.",
+        title: "Cartographie assistée par IA",
+        description: "Génération de cartes à partir de levés, images satellites ou vidéos.",
     },
 ];
 
 const keywords = [
-    "Détection de conflits fonciers",
-    "Vérification des titres fonciers",
-    "Cartographie automatisée",
-    "Chatbot multilingue",
-    "Analyse de terrain par IA",
-    "Prédiction de valeur foncière",
-    "Sécurisation des documents",
+    "Conflits fonciers",
+    "Authentification des titres",
+    "Cartographie IA",
+    "Chatbot IA",
+    "Analyse terrain",
+    "Indice de risque foncier",
+    "Sécurisation documentaire",
     "Machine Learning foncier",
-    "Gestion de données cadastrales",
+    "Gestion cadastrale",
 ];
 
 
+
 export default function Home() {
+
+
     return (
         <div>
             <div className="font-poppins bg-gray-50 text-gray-900">
@@ -63,15 +68,15 @@ export default function Home() {
 
                         <div className="md:w-1/2 text-center md:text-left">
                             <h2 className="text-4xl md:text-5xl font-extrabold mb-6">
-                                Sécuriser, Vérifier et Simplifier le foncier grâce à l’IA
+                                Sécuriser et simplifier la gestion foncière grâce à l’IA
                             </h2>
                             <p className="mb-8 text-lg">
-                                Une solution innovante pour la gestion foncière : détection de conflits, vérification des documents, chatbot intelligent et cartographie automatisée.
+                                Plateforme intelligente pour la sécurisation du foncier au Bénin — détection automatique des conflits, authentification des titres, chatbot multilingue et cartographie assistée par IA.
                             </p>
                             <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                                <button className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100">
-                                    Verifier mon levé
-                                </button>
+                                <a href='/start' className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100">
+                                    Vérifier mon levé topographique
+                                </a>
                                 {/* <button className="border border-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600">
                                     En savoir plus
                                 </button> */}
@@ -172,7 +177,7 @@ export default function Home() {
                                 </svg>
                             </div>
                             <h3 className="text-xl font-semibold text-gray-900 mb-3">Import du document</h3>
-                            <p className="text-gray-600">Chargez un document foncier ou une image satellite depuis votre appareil.</p>
+                            <p className="text-gray-600">Chargez un levé topographique, image depuis votre appareil.</p>
                         </div>
 
                         <div className="relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 text-center z-10 group">
@@ -182,7 +187,7 @@ export default function Home() {
                                 </svg>
                             </div>
                             <h3 className="text-xl font-semibold text-gray-900 mb-3">Analyse par IA</h3>
-                            <p className="text-gray-600">Notre intelligence artificielle vérifie et détecte automatiquement les anomalies.</p>
+                            <p className="text-gray-600">Extraction des coordonnées, comparaison avec les couches (inondation, titres, marécage) et calcul d’un indice de risque.</p>
                         </div>
 
                         <div className="relative bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 text-center z-10 group">
@@ -197,9 +202,9 @@ export default function Home() {
                     </div>
 
                     <div className="text-center mt-16">
-                        <button className="bg-green-600 text-white font-medium py-3 px-8 rounded-xl transition-all duration-300 transform hover:-translate-y-1 shadow-lg hover:shadow-xl">
-                            Commencer maintenant
-                        </button>
+                        <a href='/start' className="bg-green-600 text-white font-medium py-3 px-8 rounded-xl transition-all duration-300 transform hover:-translate-y-1 shadow-lg hover:shadow-xl">
+                            Vérifier mon levé topographique
+                        </a>
                     </div>
                 </section>
 
@@ -288,11 +293,14 @@ export default function Home() {
                     </p>
 
                     {/* Bouton */}
-                    <button className="bg-white text-green-600 px-8 py-4 rounded-full font-semibold hover:bg-gray-100 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
-                        Essayer la Démo
-                    </button>
+                    <a href='/start' className="bg-white text-green-600 px-8 py-4 rounded-full font-semibold hover:bg-gray-100 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
+                        Essayer la solution
+                    </a>
                 </section>
 
+                <Bot />
+
+                
 
 
                 <footer id="contact" className="px-8 py-6 bg-gray-900 text-gray-300 text-center">

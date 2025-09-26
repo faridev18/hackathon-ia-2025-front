@@ -1,3 +1,6 @@
+import { User } from "lucide-react";
+import bot  from "../assets/bot.jpg";
+
 export function ChatMessage({ message, isUser, timestamp }) {
   return (
     <div className={`flex w-full mb-6 items-end gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
@@ -6,14 +9,18 @@ export function ChatMessage({ message, isUser, timestamp }) {
         isUser ? "bg-blue-500" : "bg-gray-300"
       }`}>
         {isUser ? (
-          <span className="text-white text-sm font-medium">O</span>
+          // <span className="text-white text-sm font-medium">O</span>
+          <User className="w-5 h-5 text-white" />   
         ) : (
-          <span className="text-gray-600 text-sm font-medium">AI</span>
+          <span className="text-gray-600 text-sm font-medium">
+            <img src={bot} alt="AI Avatar" className="w-8 h-8 rounded-full" />
+            {/* <img src="" alt="" /> */}
+          </span>
         )}
       </div>
 
       {/* Message bubble */}
-      <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm relative ${
+      <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-md relative ${
         isUser 
           ? "bg-blue-500 text-white rounded-br-sm" 
           : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"

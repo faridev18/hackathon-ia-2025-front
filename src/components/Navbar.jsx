@@ -10,7 +10,10 @@ export default function Navbar() {
         
         {/* Logo */}
         {/* <h1 className="text-2xl font-bold text-green-600">Foncier Intelligent</h1> */}
-        <img className="h-12" src={logo} alt="" />
+        <a href="/">
+          <img className="h-12" src={logo} alt="" />
+        </a>
+        
 
         {/* Menu Desktop */}
         <ul className="hidden md:flex gap-6 text-gray-700 font-medium">
