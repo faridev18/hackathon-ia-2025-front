@@ -74,18 +74,17 @@ export default function Start() {
         if (!file) return;
         setLoading(true);
 
-        // Données essentielles pour la parcelle
         const parcelleData = {
             textualData: {
                 aif: "NON",
                 air_proteges: "NON",
                 dpl: "NON",
                 dpm: "NON",
-                enregistrement_individuel: "OUI",
-                litige: "NON",
+                enregistrement_individuel: "NON",
+                litige: "OUI",
                 parcelles: "OUI",
-                restriction: "OUI",
-                tf_demembres: "NON",
+                restriction: "NON",
+                tf_demembres: "OUI",
                 tf_en_cours: "NON",
                 tf_etat: "NON",
                 titre_reconstitue: "NON",
@@ -93,14 +92,10 @@ export default function Start() {
             },
 
             coordinates: [
-                { x: 321562.2, y: 1135517.34 },
-                { x: 321590.39, y: 1135506.9 },
-                { x: 321587.21, y: 1135487.05 },
-                { x: 321559.04, y: 1135497.6 },
-                { x: 321587.21, y: 1135487.05 },
-                { x: 321584.02, y: 1135467.22 },
-                { x: 321555.89, y: 1135477.83 },
-                { x: 321559.04, y: 1135497.6 }
+                { x: 452965.03, y: 704873.48 },
+                { x: 452967.13, y: 704851.58 },
+                { x: 452946.23, y: 704849.57 },
+                { x: 452944.12, y: 704871.47 }
             ]
         };
 
@@ -109,8 +104,12 @@ export default function Start() {
             setLoading(false);
             // Navigation vers la page Parcelle avec les données essentielles
             navigate("/parcelle", { state: { parcelleData } });
-        }, 3000);
+        }, 5000);
     };
+
+
+
+
 
     return (
         <>
@@ -183,7 +182,7 @@ export default function Start() {
                                                     e.stopPropagation();
                                                     document.getElementById('fileInput').click();
                                                 }}
-                                                whileHover={{ scale: 1.05, backgroundColor: "#f0f9ff" }}
+                                                whileHover={{ scale: 1.05, backgroundColor: "#f0f9ff" }}ya
                                                 whileTap={{ scale: 0.95 }}
                                                 className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg transition-colors"
                                             >
